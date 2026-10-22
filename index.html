@@ -25,6 +25,12 @@ button.outline{background:#fff;color:var(--green);border:1px solid #b7d2bf}
 .notice.ok{background:#eaf7ee;border:1px solid #bfe4c9;color:#176638}
 .notice.warn{background:#fff4d5;border:1px solid #f4df9b;color:#705600}
 .hidden{display:none!important}
+#editPanel{position:fixed;inset:0;z-index:1000;margin:0;border-radius:0;background:rgba(12,30,18,.48);border:0;box-shadow:none;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#editPanel:not(.hidden){display:flex}
+#editPanel>.section-head,#editPanel>form{width:min(100%,900px);background:#fff}
+#editPanel>.section-head{margin:0 auto;padding:16px 18px 0;border-radius:13px 13px 0 0}
+#editPanel>form{margin:0!important;padding:0 18px 18px;border-radius:0 0 13px 13px;max-height:85vh;overflow:auto}
+#editableFields{grid-template-columns:repeat(3,minmax(0,1fr))}
 .selector{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
 .sol-meta{margin-top:9px;font-size:13px;color:var(--muted)}
 .scheme-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -71,6 +77,9 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
  .searchrow button{width:100%}
  .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  .form-grid{grid-template-columns:1fr}
+  #editableFields{grid-template-columns:1fr}
+  #editPanel{padding:8px}
+  #editPanel>form{max-height:88vh}
  .form-grid .wide{grid-column:auto}
  .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
  .stat{padding:9px}.stat strong{font-size:17px}
@@ -89,7 +98,15 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
 <main>
   <div id="notice" class="notice warn">Loading DEAF account data…</div>
   <section class="panel">
-    <div class="selector">
+    <section id="overallPanel" class="panel">
+    <div class="section-head"><h2>Overall DEAF Summary — All Branches</h2><span class="tag" id="overallBranchCount">53 SOLs</span></div>
+    <div class="stats">
+      <div class="stat"><span>Total Accounts</span><strong id="overallAccountCount">0</strong></div>
+      <div class="stat"><span>Total Amount</span><strong id="overallAmount">₹0</strong></div>
+      <div class="stat"><span>Completed</span><strong id="overallCompleted">0</strong></div>
+    </div>
+  </section>
+  <div class="selector">
       <div>
         <label for="solSelect">Select SOL ID / Branch</label>
         <select id="solSelect"><option value="">Select SOL ID / Branch</option>
@@ -175,7 +192,7 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
     <form id="editForm" style="margin-top:16px">
       <input type="hidden" id="recordIndex">
       <div id="editableFields" class="form-grid"></div>
-      <div class="form-actions"><button id="saveBtn" type="submit">Save Update</button><button type="button" class="light" id="cancelEdit">Cancel</button></div>
+      <div id="saveMessage" class="notice hidden" role="status"></div><div class="form-actions"><button id="saveBtn" type="submit">Save Update</button><button type="button" class="light" id="cancelEdit">Cancel</button></div>
     </form>
   </section>
 </main>
@@ -246,6 +263,7 @@ async function init(){
   if(res.success===false||res.ok===false)throw new Error(res.error||"API request failed");
   if(!Array.isArray(res.records))throw new Error('API response must contain a "records" array.');
   records=res.records.map(norm);
+  showOverallSummary();
 
   // Preserve all 53 master branches; update labels from records when branch names exist.
   // Use only the official static branch master (53 SOLs).
@@ -265,6 +283,13 @@ async function init(){
   showNotice("SOL list is ready, but account data could not load: "+e.message+". Check Apps Script deployment/API access.","error");
   $("branchMeta").textContent=BRANCH_MASTER.length+" branches available. Account data connection needs checking.";
  }
+}
+function showOverallSummary(){
+ const total=records.reduce((n,r)=>n+Number(String(val(r,"AMOUNT")||0).replace(/[₹,\\s]/g,"")||0),0);
+ $("overallAccountCount").textContent=records.length;
+ $("overallAmount").textContent=money(total);
+ $("overallCompleted").textContent=records.filter(r=>String(val(r,"STATUS")||r.status||"").toLowerCase()==="completed").length;
+ $("overallBranchCount").textContent=BRANCH_MASTER.length+" SOLs";
 }
 function solRecords(){return records.filter(r=>String(val(r,"SOL ID")||r.solId||"").trim()===selectedSol);}
 function showSummary(){
@@ -296,32 +321,19 @@ function openEdit(i){
  $("recordIndex").value=i;
  $("editSubtitle").textContent="SOL "+(val(r,"SOL ID")||r.solId)+" · "+(val(r,"Branch")||r.branch||"")+" · "+(val(r,"ACCOUNT NO")||r.accountNo||"");
 
- // Editable business fields. Identifiers are displayed read-only to avoid changing
- // the account/branch identity accidentally.
- const editableHeaders=["PROCESS","STATUS","REMARK"];
- const fields=editableHeaders.map(key=>{
-   const value=val(r,key);
-   const safeId="edit_"+key.toLowerCase().replace(/[^a-z0-9]+/g,"_");
-   const wide=/REMARK|ADD1|ADD2|NAME/i.test(key);
+ // Display all columns in popup; only PROCESS, STATUS, REMARK are editable.
+ const readOnlyHeaders=FIELDS.filter(k=>!["PROCESS","STATUS","REMARK"].includes(k.toUpperCase()));
+ const readOnlyHtml=readOnlyHeaders.map(key=>`<div class="detail"><span>${esc(key)}</span><strong>${esc(val(r,key))||"—"}</strong></div>`).join("");
+ const fields=["PROCESS","STATUS","REMARK"].map(key=>{
+   const value=val(r,key)||(key==="PROCESS"?r.process:key==="STATUS"?r.status:r.remark)||"";
+   const id="edit_"+key.toLowerCase();
    let control="";
-   if(key.toUpperCase()==="PROCESS"){
-     control=`<select data-column="${esc(key)}" id="${safeId}" required>${PROCESS_OPTIONS.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
-   }else if(key.toUpperCase()==="STATUS"){
-     control=`<select data-column="${esc(key)}" id="${safeId}" required>${STATUS_OPTIONS.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
-   }else if(key.toUpperCase()==="REVIEW STATUS"){
-     const options=["Not Reviewed","Reviewed"];
-     control=`<select data-column="${esc(key)}" id="${safeId}" required>${options.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
-   }else if(/REMARK|ADD1|ADD2|NAME/i.test(key)){
-     control=`<textarea data-column="${esc(key)}" id="${safeId}" rows="2" required>${esc(value)}</textarea>`;
-   }else{
-     control=`<input data-column="${esc(key)}" id="${safeId}" value="${esc(value)}" required>`;
-   }
-   return `<div class="${wide?"wide":""}"><label for="${safeId}">${esc(key)} <span style="color:#b42318">*</span></label>${control}</div>`;
+   if(key==="PROCESS") control=`<select data-column="PROCESS" id="${id}" required><option value="">Select process</option>${PROCESS_OPTIONS.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
+   else if(key==="STATUS") control=`<select data-column="STATUS" id="${id}" required><option value="">Select status</option>${STATUS_OPTIONS.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
+   else control=`<textarea data-column="REMARK" id="${id}" rows="3" required>${esc(value)}</textarea>`;
+   return `<div class="${key==="REMARK"?"wide":""}"><label for="${id}">${key} <span style="color:#b42318">*</span></label>${control}</div>`;
  }).join("");
-
- const identity=["SOL ID","Branch","CUST ID","ACCOUNT NO","TRAN ID","UDRN"];
- const identityHtml=identity.map(key=>`<div class="detail"><span>${esc(key)}</span><strong>${esc(val(r,key))||"—"}</strong></div>`).join("");
- $("editableFields").innerHTML=identityHtml+fields;
+ $("editableFields").innerHTML=readOnlyHtml+fields;
  $("editPanel").classList.remove("hidden");
  $("editPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }

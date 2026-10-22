@@ -51,6 +51,7 @@ button.outline{background:#fff;color:var(--green);border:1px solid #b7d2bf}
 .detail strong{display:block;font-size:12px;overflow-wrap:anywhere;font-weight:600}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-grid .wide{grid-column:1/-1}
+#editableFields>div{min-width:0} #editableFields input,#editableFields select,#editableFields textarea{min-width:0}
 .form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
 .stat{background:#f5faf6;border:1px solid var(--border);border-radius:10px;padding:12px}
@@ -117,14 +118,9 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
   </section>
   <section id="editPanel" class="panel hidden">
     <div class="section-head"><div><h2>Edit Account</h2><div id="editSubtitle" class="tiny muted"></div></div><button class="light" type="button" id="closeEdit">Close</button></div>
-    <div id="fullDetails" class="detail-grid"></div>
     <form id="editForm" style="margin-top:16px">
       <input type="hidden" id="recordIndex">
-      <div class="form-grid">
-        <div><label for="process">PROCESS</label><select id="process" required></select></div>
-        <div><label for="status">STATUS</label><select id="status" required></select></div>
-        <div class="wide"><label for="remark">REMARK</label><textarea id="remark" rows="3" placeholder="Enter follow-up / reversal remark"></textarea></div>
-      </div>
+      <div id="editableFields" class="form-grid"></div>
       <div class="form-actions"><button id="saveBtn" type="submit">Save Update</button><button type="button" class="light" id="cancelEdit">Cancel</button></div>
     </form>
   </section>
@@ -209,19 +205,51 @@ function openEdit(i){
  const r=records[i];if(!r)return;
  $("recordIndex").value=i;
  $("editSubtitle").textContent="SOL "+(val(r,"SOL ID")||r.solId)+" · "+(val(r,"Branch")||r.branch||"")+" · "+(val(r,"ACCOUNT NO")||r.accountNo||"");
- $("fullDetails").innerHTML=FIELDS.filter(k=>!["PROCESS","STATUS","REMARK","REVIEW STATUS"].includes(k)).map(k=>`<div class="detail"><span>${esc(k)}</span><strong>${esc(val(r,k))||"—"}</strong></div>`).join("");
- $("process").value=val(r,"PROCESS")||r.process||PROCESS_OPTIONS[0];
- $("status").value=val(r,"STATUS")||r.status||STATUS_OPTIONS[0];
- $("remark").value=val(r,"REMARK")||r.remark||"";
- $("editPanel").classList.remove("hidden");$("editPanel").scrollIntoView({behavior:"smooth",block:"start"});
+
+ // Editable business fields. Identifiers are displayed read-only to avoid changing
+ // the account/branch identity accidentally.
+ const editableHeaders=FIELDS.filter(k=>!["SOL ID","BRANCH","CUST ID","ACCOUNT NO","TRAN ID","UDRN"].includes(k.toUpperCase()));
+ const fields=editableHeaders.map(key=>{
+   const value=val(r,key);
+   const safeId="edit_"+key.toLowerCase().replace(/[^a-z0-9]+/g,"_");
+   const wide=/REMARK|ADD1|ADD2|NAME/i.test(key);
+   let control="";
+   if(key.toUpperCase()==="PROCESS"){
+     control=`<select data-column="${esc(key)}" id="${safeId}" required>${PROCESS_OPTIONS.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
+   }else if(key.toUpperCase()==="STATUS"){
+     control=`<select data-column="${esc(key)}" id="${safeId}" required>${STATUS_OPTIONS.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
+   }else if(key.toUpperCase()==="REVIEW STATUS"){
+     const options=["Not Reviewed","Reviewed"];
+     control=`<select data-column="${esc(key)}" id="${safeId}" required>${options.map(x=>`<option value="${esc(x)}" ${String(value)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
+   }else if(/REMARK|ADD1|ADD2|NAME/i.test(key)){
+     control=`<textarea data-column="${esc(key)}" id="${safeId}" rows="2" required>${esc(value)}</textarea>`;
+   }else{
+     control=`<input data-column="${esc(key)}" id="${safeId}" value="${esc(value)}" required>`;
+   }
+   return `<div class="${wide?"wide":""}"><label for="${safeId}">${esc(key)} <span style="color:#b42318">*</span></label>${control}</div>`;
+ }).join("");
+
+ const identity=["SOL ID","Branch","CUST ID","ACCOUNT NO","TRAN ID","UDRN"];
+ const identityHtml=identity.map(key=>`<div class="detail"><span>${esc(key)}</span><strong>${esc(val(r,key))||"—"}</strong></div>`).join("");
+ $("editableFields").innerHTML=identityHtml+fields;
+ $("editPanel").classList.remove("hidden");
+ $("editPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
 async function save(e){
- e.preventDefault();const i=Number($("recordIndex").value),r=records[i];if(!r)return;
+ e.preventDefault();
+ const i=Number($("recordIndex").value),r=records[i];if(!r)return;
  const rowNumber=Number(r.rowNumber||r.row||0);
  if(!rowNumber){showNotice("Record row number missing. Ensure Code.gs returns rowNumber.","error");return;}
+ const updates={};
+ document.querySelectorAll("#editableFields [data-column]").forEach(el=>{
+   updates[el.dataset.column]=el.value.trim();
+ });
+ for(const [key,value] of Object.entries(updates)){
+   if(value===""){showNotice("Please fill all compulsory fields. Missing: "+key,"error");return;}
+ }
  $("saveBtn").disabled=true;$("saveBtn").textContent="Saving…";
  try{
-  const res=await api("update",{rowNumber,process:$("process").value,status:$("status").value,remark:$("remark").value});
+  const res=await api("update",{rowNumber,updates});
   if(res.success===false||res.ok===false)throw new Error(res.error||"Update failed");
   showNotice(res.message||"Account updated successfully.","ok");
   $("editPanel").classList.add("hidden");

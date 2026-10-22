@@ -1,111 +1,367 @@
-<!DOCTYPE html>
+<?php
+/*
+ * DEAF Reversal Management Portal - PHP Frontend
+ * Backend: Google Apps Script Web App
+ *
+ * IMPORTANT:
+ * - Configure the Apps Script URL below.
+ * - This frontend has no login screen.
+ * - The Apps Script backend must enforce authorization for real bank data.
+ * - Use HTTPS hosting with PHP cURL enabled.
+ */
+
+$API_URL = 'PASTE_YOUR_DEPLOYED_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+function h($value) {
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+$apiConfigured = (strpos($API_URL, 'https://script.google.com/macros/s/') === 0);
+
+function call_api($url, $payload = null) {
+    if (!function_exists('curl_init')) {
+        return array('success' => false, 'error' => 'PHP cURL extension is not enabled on this server.');
+    }
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 45);
+
+    if ($payload !== null) {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    }
+
+    $response = curl_exec($ch);
+    $error = curl_error($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($response === false) {
+        return array('success' => false, 'error' => 'Backend connection failed: ' . $error);
+    }
+
+    $decoded = json_decode($response, true);
+    if (!is_array($decoded)) {
+        return array(
+            'success' => false,
+            'error' => 'Backend returned an invalid response (HTTP ' . $status . ').'
+        );
+    }
+
+    if ($status < 200 || $status >= 300) {
+        $decoded['success'] = false;
+        if (empty($decoded['error'])) {
+            $decoded['error'] = 'Backend HTTP status ' . $status;
+        }
+    }
+
+    return $decoded;
+}
+
+$flash = '';
+$flashType = 'success';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_account'])) {
+    if (!$apiConfigured) {
+        $flash = 'Please configure $API_URL with your deployed Google Apps Script URL.';
+        $flashType = 'error';
+    } else {
+        $payload = array(
+            'action' => 'update',
+            'rowNumber' => isset($_POST['rowNumber']) ? (int)$_POST['rowNumber'] : 0,
+            'process' => isset($_POST['process']) ? trim($_POST['process']) : '',
+            'status' => isset($_POST['status']) ? trim($_POST['status']) : '',
+            'remark' => isset($_POST['remark']) ? trim($_POST['remark']) : ''
+        );
+
+        $result = call_api($API_URL, $payload);
+        if (!empty($result['success']) || !empty($result['ok'])) {
+            $flash = 'Update request completed. Refreshing the account list will show the latest data.';
+            $flashType = 'success';
+        } else {
+            $flash = !empty($result['error']) ? $result['error'] : 'Update failed. Check Apps Script API contract.';
+            $flashType = 'error';
+        }
+    }
+}
+
+$records = array();
+$headers = array();
+$loadError = '';
+
+if (!$apiConfigured) {
+    $loadError = 'Configure $API_URL at the top of index.php before connecting to your Apps Script backend.';
+} else {
+    $result = call_api($API_URL, array('action' => 'list'));
+    if (!empty($result['records']) && is_array($result['records'])) {
+        $records = $result['records'];
+        $headers = isset($result['headers']) && is_array($result['headers']) ? $result['headers'] : array();
+    } elseif (!empty($result['error'])) {
+        $loadError = $result['error'];
+    } else {
+        $loadError = 'Could not load records. The Apps Script must accept POST action "list" and return records.';
+    }
+}
+
+$sols = array();
+foreach ($records as $record) {
+    $sol = isset($record['solId']) ? (string)$record['solId'] : '';
+    if ($sol !== '') {
+        $sols[$sol] = true;
+    }
+}
+ksort($sols);
+
+$processOptions = array(
+    'Customer Contact',
+    'Customer Consent Obtained',
+    'Documents Awaited',
+    'Documents Received',
+    'Claim / Reversal Request Submitted',
+    'Reversal Under Process',
+    'Reversal Completed',
+    'Account Holder Not Traceable',
+    'Customer Not Interested',
+    'Other'
+);
+$statusOptions = array('Pending', 'In Progress', 'Completed', 'Not Eligible', 'Rejected', 'Closed');
+
+function record_value($record, $key, $fallback = '') {
+    return isset($record[$key]) ? $record[$key] : $fallback;
+}
+?>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MPGB | DEAF Reversal Portal</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEAF Reversal Management Portal</title>
 <style>
-:root{--g:#006633;--bg:#f3f7f4;--bd:#dce5df;--muted:#68766d}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);font:14px Arial,sans-serif;color:#17231c}
-header{background:var(--g);color:#fff;padding:17px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-h1{font-size:20px;margin:0 0 4px}.sub{opacity:.85}.wrap{max-width:1500px;margin:auto;padding:18px}.card{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:15px;box-shadow:0 3px 12px #173c2408}
-.hidden{display:none!important}.field{margin-bottom:12px}label{display:block;font-weight:700;margin-bottom:5px}input,select,textarea,button{font:inherit;border:1px solid #cbd7ce;border-radius:7px;padding:10px;background:#fff;color:#17231c}input,select,textarea{width:100%}button{background:var(--g);border-color:var(--g);color:#fff;font-weight:bold;cursor:pointer}button.secondary{background:#fff;color:var(--g)}button:disabled{opacity:.5}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{background:#fbfdfb;border:1px solid var(--bd);padding:14px;border-radius:10px}.metric span{color:var(--muted);font-size:12px}.metric strong{display:block;font-size:25px;color:var(--g);margin-top:6px}
-.solgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px}.solcard{border:1px solid var(--bd);border-radius:10px;padding:14px;background:#fff}.solcard h3{margin:0 0 6px;color:var(--g)}.solstats{display:flex;justify-content:space-between;gap:8px;margin:12px 0}.solstats strong{display:block;font-size:20px}.solstats span{font-size:12px;color:var(--muted)}
-.filters{display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:10px;align-items:end}.table-wrap{overflow:auto;max-height:65vh;border:1px solid var(--bd);border-radius:8px}table{border-collapse:separate;border-spacing:0;width:100%;min-width:1300px;background:#fff}th,td{padding:8px;border-bottom:1px solid var(--bd);border-right:1px solid #edf1ee;text-align:left;vertical-align:top;font-size:12px}th{position:sticky;top:0;background:#e8f2eb;z-index:2;white-space:nowrap}td input,td select{min-width:140px;padding:7px;font-size:12px}td textarea{min-width:180px;min-height:55px;font-size:12px}
-.pending{background:#fff4d6}.notice{padding:10px;border-radius:8px;background:#edf7ef;margin:10px 0;white-space:pre-wrap}.error{background:#ffeded;color:#8b1b1b}.muted{color:var(--muted)}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}.empty{text-align:center;padding:28px;color:var(--muted)}
-@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.filters .wide{grid-column:1/-1}.wrap{padding:9px}}@media(max-width:520px){.filters{grid-template-columns:1fr}.filters .wide{grid-column:auto}}
-</style></head>
+:root{--green:#006633;--green2:#00994d;--line:#dce6df;--ink:#203027}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 Arial,sans-serif;background:#f3f7f4;color:var(--ink)}
+header{background:linear-gradient(110deg,#006400,#00994d);color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+h1{font-size:25px;margin:0 0 5px}header p{margin:0;font-size:16px}
+.wrap{max-width:1500px;margin:18px auto;padding:0 14px}
+.banner{border-radius:9px;padding:12px 14px;margin-bottom:14px}
+.warning{background:#fff3cd;border:1px solid #ffe08a;color:#6d5200}
+.error{background:#ffeded;border:1px solid #f3caca;color:#a11}
+.success{background:#eaf7ee;border:1px solid #bfe4c9;color:#176638}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.card,.panel{background:#fff;border:1px solid var(--line);border-radius:11px;padding:14px;box-shadow:0 2px 7px #173c2010}
+.card span{display:block;color:#637268;font-size:12px}.card strong{display:block;font-size:23px;margin-top:5px}
+.filters{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:5px;min-width:180px;flex:1}
+label{font-size:12px;font-weight:bold;color:#536158}
+input,select,textarea{width:100%;font:inherit;padding:9px 10px;border:1px solid #cbd7ce;border-radius:7px;background:#fff}
+button{border:0;border-radius:7px;padding:10px 14px;background:var(--green);color:#fff;font-weight:bold;cursor:pointer}
+button.secondary{background:#e7efe9;color:#155b32}
+.tablewrap{overflow:auto;margin-top:12px}
+table{border-collapse:collapse;width:100%;min-width:1350px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e6ece8;vertical-align:top;white-space:nowrap}
+th{background:#eff6f1;color:#315440;font-size:12px;position:sticky;top:0}
+td.remark{white-space:normal;min-width:160px;max-width:260px}
+.pill{display:inline-block;background:#edf6ef;color:#176638;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:bold}
+.small{font-size:12px;color:#68776e}
+.editbox{margin-top:14px}
+.editgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.wide{grid-column:1/-1}
+.hidden{display:none}
+footer{text-align:center;color:#7b8980;padding:18px;font-size:12px}
+@media(max-width:750px){header{display:block}header h1{font-size:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.editgrid{grid-template-columns:1fr}.wide{grid-column:auto}}
+</style>
+</head>
 <body>
-<header><div><h1>DEAF Reversal Management Portal</h1><div class="sub">Madhya Pradesh Gramin Bank · Regional Office Jabalpur</div></div><div class="row"><span id="userInfo">Verifying authorized Google account…</span><button id="logoutBtn" class="secondary hidden">Reload</button></div></header>
-<main class="wrap">
-<div id="appMsg" class="notice">Connecting securely to the portal…</div>
-<section id="dashboard" class="hidden">
-<div class="grid"><div class="metric"><span>Total Accounts</span><strong id="totalAccounts">0</strong></div><div class="metric"><span>Total DEAF Amount</span><strong id="totalAmount">₹0.00</strong></div><div class="metric"><span>Pending Review</span><strong id="pendingAccounts">0</strong></div><div class="metric"><span>Reviewed</span><strong id="reviewedAccounts">0</strong></div></div>
-<section id="solSection" class="card"><div class="row between"><h2 style="margin:0;font-size:18px">Select SOL / Branch</h2><button id="showAllBtn" class="secondary">Show SOL Summary</button></div><p class="muted">Your access is based on the Google account authorized by RO.</p><div id="solCards" class="solgrid"></div></section>
-<section id="accountSection" class="card hidden"><div class="row between"><div><h2 id="selectedTitle" style="margin:0 0 5px;font-size:18px">Account List</h2><span id="selectedSummary" class="muted"></span></div><button id="backBtn" class="secondary">← Back to SOL Summary</button></div>
-<div class="filters" style="margin:16px 0"><div><label>Review Status</label><select id="reviewFilter"><option value="">All Accounts</option><option>Not Reviewed</option><option>Reviewed</option></select></div><div><label>STATUS</label><select id="statusFilter"><option value="">All Statuses</option><option>Pending</option><option>In Progress</option><option>Completed</option><option>Not Eligible</option><option>Rejected</option><option>Closed</option></select></div><div class="wide"><label>Search account / customer / UDRN</label><input id="searchBox" placeholder="Search this branch…"></div><div><button id="refreshBtn" class="secondary">Refresh</button></div></div>
-<div class="table-wrap"><table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div><div id="emptyState" class="empty hidden">No accounts found.</div></section>
-</section></main>
+<header>
+  <div><h1>DEAF Reversal Management Portal</h1><p>Madhya Pradesh Gramin Bank · Regional Office Jabalpur</p></div>
+  <div class="pill">Account Management</div>
+</header>
+<div class="wrap">
+  <?php if ($flash !== ''): ?>
+    <div class="banner <?php echo $flashType === 'error' ? 'error' : 'success'; ?>"><?php echo h($flash); ?></div>
+  <?php endif; ?>
+
+  <?php if ($loadError !== ''): ?>
+    <div class="banner error"><?php echo h($loadError); ?></div>
+  <?php endif; ?>
+
+  <div class="banner warning">
+    PROCESS, STATUS and REMARK are the only editable fields in this page. The Apps Script backend must verify authorization before reading or changing real customer records.
+  </div>
+
+  <div class="cards">
+    <div class="card"><span>Accounts Loaded</span><strong id="totalCount"><?php echo count($records); ?></strong></div>
+    <div class="card"><span>Total Amount</span><strong id="totalAmount">₹0</strong></div>
+    <div class="card"><span>Completed</span><strong id="completedCount">0</strong></div>
+    <div class="card"><span>Pending / In Progress</span><strong id="pendingCount">0</strong></div>
+  </div>
+
+  <section class="panel">
+    <div class="filters">
+      <div class="field">
+        <label for="solFilter">Select SOL ID / Branch</label>
+        <select id="solFilter"><option value="">All SOLs</option>
+          <?php foreach ($sols as $sol => $unused): ?>
+            <option value="<?php echo h($sol); ?>"><?php echo h($sol); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field"><label for="search">Search accounts</label><input id="search" type="search" placeholder="Name, account no., customer ID, branch..."></div>
+      <button type="button" class="secondary" id="resetBtn">Reset Filters</button>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top:14px">
+    <h3 style="margin:0">DEAF Account List</h3>
+    <div class="small">Select View / Edit to update PROCESS, STATUS and REMARK.</div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>SOL ID</th><th>Branch</th><th>NAME</th><th>CUST ID</th><th>ACCOUNT NO</th>
+          <th>SCHEME</th><th>SHCEME TYPE</th><th>AMOUNT</th><th>LAST TR DATE</th>
+          <th>DEAF TR DATE</th><th>TRAN ID</th><th>ACCOUNT STATUS</th><th>UDRN</th>
+          <th>ADD1</th><th>ADD2</th><th>PIN CODE</th><th>MOB NO</th>
+          <th>PROCESS</th><th>STATUS</th><th>REMARK</th><th>Action</th>
+        </tr></thead>
+        <tbody id="accountRows">
+        <?php foreach ($records as $record): ?>
+          <?php
+            $values = isset($record['values']) && is_array($record['values']) ? $record['values'] : array();
+            $getv = function($key) use ($record, $values, $headers) {
+                if (isset($record[$key])) return $record[$key];
+                $target = strtoupper($key);
+                foreach ($headers as $i => $header) {
+                    if (strtoupper(trim($header)) === $target && isset($values[$i])) return $values[$i];
+                }
+                return '';
+            };
+            $jsonData = array(
+                'rowNumber' => record_value($record, 'rowNumber', ''),
+                'solId' => $getv('SOL ID'),
+                'branch' => $getv('Branch'),
+                'name' => $getv('NAME'),
+                'custId' => $getv('CUST ID'),
+                'accountNo' => $getv('ACCOUNT NO'),
+                'scheme' => $getv('SCHEME'),
+                'schemeType' => $getv('SHCEME TYPE'),
+                'amount' => $getv('AMOUNT'),
+                'lastTrDate' => $getv('LAST TR DATE'),
+                'deafTrDate' => $getv('DEAF TR DATE'),
+                'tranId' => $getv('TRAN ID'),
+                'accountStatus' => $getv('ACCOUNT STATUS'),
+                'udrn' => $getv('UDRN'),
+                'add1' => $getv('ADD1'),
+                'add2' => $getv('ADD2'),
+                'pinCode' => $getv('PIN CODE'),
+                'mobNo' => $getv('MOB NO'),
+                'process' => record_value($record, 'process', $getv('PROCESS')),
+                'status' => record_value($record, 'status', $getv('STATUS')),
+                'remark' => record_value($record, 'remark', $getv('REMARK'))
+            );
+          ?>
+          <tr data-record="<?php echo h(json_encode($jsonData)); ?>">
+            <td><?php echo h($jsonData['solId']); ?></td><td><?php echo h($jsonData['branch']); ?></td>
+            <td><?php echo h($jsonData['name']); ?></td><td><?php echo h($jsonData['custId']); ?></td>
+            <td><?php echo h($jsonData['accountNo']); ?></td><td><?php echo h($jsonData['scheme']); ?></td>
+            <td><?php echo h($jsonData['schemeType']); ?></td><td class="amount"><?php echo h($jsonData['amount']); ?></td>
+            <td><?php echo h($jsonData['lastTrDate']); ?></td><td><?php echo h($jsonData['deafTrDate']); ?></td>
+            <td><?php echo h($jsonData['tranId']); ?></td><td><?php echo h($jsonData['accountStatus']); ?></td>
+            <td><?php echo h($jsonData['udrn']); ?></td><td><?php echo h($jsonData['add1']); ?></td>
+            <td><?php echo h($jsonData['add2']); ?></td><td><?php echo h($jsonData['pinCode']); ?></td>
+            <td><?php echo h($jsonData['mobNo']); ?></td><td class="processCell"><?php echo h($jsonData['process']); ?></td>
+            <td class="statusCell"><?php echo h($jsonData['status']); ?></td><td class="remark"><?php echo h($jsonData['remark']); ?></td>
+            <td><button type="button" class="editBtn">View / Edit</button></td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <p id="noRows" class="<?php echo count($records) ? 'hidden' : ''; ?>">No records available.</p>
+  </section>
+
+  <section class="panel editbox hidden" id="editor">
+    <h3 style="margin-top:0">Update Account</h3>
+    <p id="selectedInfo" class="small"></p>
+    <form method="post" id="editForm">
+      <input type="hidden" name="rowNumber" id="rowNumber">
+      <div class="editgrid">
+        <div><label for="process">PROCESS</label><select id="process" name="process" required>
+          <?php foreach ($processOptions as $option): ?><option value="<?php echo h($option); ?>"><?php echo h($option); ?></option><?php endforeach; ?>
+        </select></div>
+        <div><label for="status">STATUS</label><select id="status" name="status" required>
+          <?php foreach ($statusOptions as $option): ?><option value="<?php echo h($option); ?>"><?php echo h($option); ?></option><?php endforeach; ?>
+        </select></div>
+        <div class="wide"><label for="remarkInput">REMARK</label><textarea id="remarkInput" name="remark" rows="3"></textarea></div>
+      </div>
+      <p><button type="submit" name="save_account" value="1">Save Update</button> <button type="button" class="secondary" id="cancelBtn">Cancel</button></p>
+    </form>
+  </section>
+</div>
+<footer>MPGB · Regional Office Jabalpur</footer>
 <script>
-const API_URL="https://script.google.com/macros/s/AKfycbyQRiCLA4RtUryREQ5We9y-ctp1y348S_vJgIRIiPplNVDv63kMZiMPKxdTd7gtmUZV/exec";
-const PROCESS_OPTIONS=["Customer Contact","Customer Consent Obtained","Documents Awaited","Documents Received","Claim / Reversal Request Submitted","Reversal Under Process","Reversal Completed","Account Holder Not Traceable","Customer Not Interested","Other"];
-const STATUS_OPTIONS=["Pending","In Progress","Completed","Not Eligible","Rejected","Closed"];
-const REVIEW_OPTIONS=["Not Reviewed","Reviewed"];
-let user=null,sols=[],accounts=[],headers=[],selectedSol="",searchTimer=null;
-const $=id=>document.getElementById(id);
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function message(text,error=false){const e=$("appMsg");e.textContent=text;e.classList.remove("hidden","error");if(error)e.classList.add("error");}
-function hideMsg(){$("appMsg").classList.add("hidden");}
-function api(params){
-  return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(params),redirect:"follow"})
-    .then(r=>r.text()).then(t=>{try{return JSON.parse(t)}catch(e){throw new Error("API response was not JSON. Check Apps Script deployment and access settings.")}});
-}
-function money(n){return new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(n)||0);}
-async function init(){
-  try{
-    // No browser-supplied email is trusted. Apps Script verifies Google identity.
-    const r=await api({action:"whoami"});
-    if(!r.ok)throw new Error(r.error||"Google account is not authorized.");
-    user=r.user;
-    $("userInfo").textContent=user.email+" · "+(["RO","ADMIN"].includes(user.role)?"RO Access":"SOL "+user.solId);
-    $("dashboard").classList.remove("hidden");
-    hideMsg();
-    await loadSummary();
-  }catch(e){message(e.message+" If personal Gmail identity cannot be exposed by this Apps Script deployment, access is denied by design. Do not make the API public to bypass this check.",true);}
-}
-async function loadSummary(){
-  try{
-    const r=await api({action:"solSummary"});
-    if(!r.ok)throw new Error(r.error||"Could not load SOL summary");
-    sols=r.sols||[];renderSummary();$("solSection").classList.remove("hidden");$("accountSection").classList.add("hidden");
-    $("totalAccounts").textContent=sols.reduce((n,s)=>n+Number(s.accountCount||0),0);
-    $("totalAmount").textContent=money(sols.reduce((n,s)=>n+Number(s.totalAmount||0),0));
-    let pending=0,reviewed=0;
-    for(const s of sols){const x=await api({action:"list",solId:s.solId});if(x.ok)(x.rows||[]).forEach(a=>{if((a["REVIEW STATUS"]||"Not Reviewed")==="Reviewed")reviewed++;else pending++;});}
-    $("pendingAccounts").textContent=pending;$("reviewedAccounts").textContent=reviewed;
-  }catch(e){message(e.message,true);}
-}
-function renderSummary(){
-  $("solCards").innerHTML=sols.map(s=>`<div class="solcard"><h3>${esc(s.branch||"Branch")} · SOL ${esc(s.solId)}</h3><div class="solstats"><div><span>Total Accounts</span><strong>${Number(s.accountCount||0)}</strong></div><div><span>Total Amount</span><strong>${money(s.totalAmount||0)}</strong></div></div><button data-sol="${esc(s.solId)}" class="viewAccounts">View Account List →</button></div>`).join("")||'<div class="empty">No SOL records found.</div>';
-  document.querySelectorAll(".viewAccounts").forEach(b=>b.onclick=()=>openAccounts(b.dataset.sol));
-}
-async function openAccounts(sol){
-  selectedSol=sol;hideMsg();
-  try{const r=await api({action:"list",solId:sol});if(!r.ok)throw new Error(r.error||"Could not load account list");
-    headers=r.headers||[];accounts=r.rows||[];const s=sols.find(x=>x.solId===sol);
-    $("selectedTitle").textContent=(s?.branch||"Branch")+" · SOL "+sol;$("selectedSummary").textContent=accounts.length+" accounts · Total amount "+money(s?.totalAmount||0);
-    $("solSection").classList.add("hidden");$("accountSection").classList.remove("hidden");renderAccounts();
-  }catch(e){message(e.message,true);}
-}
-function renderAccounts(){
-  const rf=$("reviewFilter").value,sf=$("statusFilter").value,q=$("searchBox").value.trim().toLowerCase();
-  const rows=accounts.filter(a=>(!rf||(a["REVIEW STATUS"]||"Not Reviewed")===rf)&&(!sf||(a.STATUS||"Pending")===sf)&&(!q||[a["ACCOUNT NO"],a.NAME,a["CUST ID"],a.UDRN,a.BRANCH].join(" ").toLowerCase().includes(q)));
-  const cols=headers.filter(h=>h!=="_row");["PROCESS","STATUS","REMARK","REVIEW STATUS"].forEach(h=>{if(!cols.includes(h))cols.push(h);});
-  $("tableHead").innerHTML="<tr>"+cols.map(h=>`<th>${esc(h)}</th>`).join("")+"<th>Action</th></tr>";
-  $("tableBody").innerHTML=rows.map(a=>{
-    const cells=cols.map(h=>{const row=a._row;
-      if(h==="PROCESS")return `<td><select data-row="${row}" data-field="process">${PROCESS_OPTIONS.map(o=>`<option ${a.PROCESS===o?"selected":""}>${esc(o)}</option>`).join("")}</select></td>`;
-      if(h==="STATUS")return `<td class="${a.STATUS==="Pending"?"pending":""}"><select data-row="${row}" data-field="status">${STATUS_OPTIONS.map(o=>`<option ${a.STATUS===o?"selected":""}>${esc(o)}</option>`).join("")}</select></td>`;
-      if(h==="REMARK")return `<td><textarea data-row="${row}" data-field="remark" placeholder="Enter remark manually">${esc(a.REMARK||"")}</textarea></td>`;
-      if(h==="REVIEW STATUS"){const v=a[h]||"Not Reviewed";return `<td><select data-row="${row}" data-field="reviewStatus">${REVIEW_OPTIONS.map(o=>`<option ${v===o?"selected":""}>${o}</option>`).join("")}</select></td>`;}
-      return `<td>${esc(a[h]||"")}</td>`;
-    }).join("");
-    return `<tr>${cells}<td><button data-save="${a._row}">Update</button></td></tr>`;
-  }).join("");
-  $("emptyState").classList.toggle("hidden",rows.length>0);
-  document.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>saveAccount(Number(b.dataset.save),b));
-}
-async function saveAccount(row,b){
-  b.disabled=true;hideMsg();
-  try{
-    const f=[...document.querySelectorAll(`[data-row="${row}"]`)],v=k=>f.find(x=>x.dataset.field===k)?.value||"";
-    const r=await api({action:"update",row,process:v("process"),status:v("status"),remark:v("remark"),reviewStatus:v("reviewStatus")});
-    if(!r.ok)throw new Error(r.error||"Update failed");
-    message("Account updated successfully.");await openAccounts(selectedSol);await loadSummary();
-  }catch(e){message(e.message,true);}finally{b.disabled=false;}
-}
-$("backBtn").onclick=loadSummary;$("showAllBtn").onclick=loadSummary;$("refreshBtn").onclick=()=>openAccounts(selectedSol);
-$("reviewFilter").onchange=renderAccounts;$("statusFilter").onchange=renderAccounts;
-$("searchBox").oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderAccounts,250);};
-init();
-</script></body></html>
+(function(){
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#accountRows tr'));
+  var solFilter = document.getElementById('solFilter');
+  var search = document.getElementById('search');
+  var editor = document.getElementById('editor');
+  var amountText = function(value){
+    var n = Number(String(value || '0').replace(/[,₹\s]/g,''));
+    return isNaN(n) ? 0 : n;
+  };
+  function getData(row){
+    try { return JSON.parse(row.getAttribute('data-record') || '{}'); }
+    catch(e){ return {}; }
+  }
+  function render(){
+    var sol = solFilter.value;
+    var q = search.value.toLowerCase().trim();
+    var total = 0, completed = 0, pending = 0, visible = 0;
+    rows.forEach(function(row){
+      var d = getData(row);
+      var text = row.textContent.toLowerCase();
+      var show = (!sol || String(d.solId) === sol) && (!q || text.indexOf(q) !== -1);
+      row.style.display = show ? '' : 'none';
+      if(show){
+        visible++;
+        total += amountText(d.amount);
+        if(String(d.status).toLowerCase() === 'completed') completed++;
+        if(['pending','in progress'].indexOf(String(d.status).toLowerCase()) !== -1) pending++;
+      }
+    });
+    document.getElementById('totalCount').textContent = visible;
+    document.getElementById('totalAmount').textContent = '₹' + total.toLocaleString('en-IN',{maximumFractionDigits:2});
+    document.getElementById('completedCount').textContent = completed;
+    document.getElementById('pendingCount').textContent = pending;
+    document.getElementById('noRows').classList.toggle('hidden', visible !== 0);
+  }
+  rows.forEach(function(row){
+    row.querySelector('.editBtn').addEventListener('click', function(){
+      var d = getData(row);
+      document.getElementById('rowNumber').value = d.rowNumber || '';
+      document.getElementById('selectedInfo').textContent =
+        'SOL ' + (d.solId || '') + ' · ' + (d.branch || '') + ' · ' +
+        (d.name || '') + ' · Account ' + (d.accountNo || '');
+      document.getElementById('process').value = d.process || 'Customer Contact';
+      document.getElementById('status').value = d.status || 'Pending';
+      document.getElementById('remarkInput').value = d.remark || '';
+      editor.classList.remove('hidden');
+      editor.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  });
+  solFilter.addEventListener('change',render);
+  search.addEventListener('input',render);
+  document.getElementById('resetBtn').addEventListener('click',function(){
+    solFilter.value=''; search.value=''; render();
+  });
+  document.getElementById('cancelBtn').addEventListener('click',function(){
+    editor.classList.add('hidden');
+  });
+  render();
+})();
+</script>
+</body>
+</html>

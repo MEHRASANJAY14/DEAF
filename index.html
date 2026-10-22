@@ -1,248 +1,183 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DEAF Account Management</title>
-<style>
-:root{--green:#006633;--green2:#078747;--pale:#eaf5ee;--border:#dbe7df;--text:#203027;--muted:#6b7a70;--bg:#f4f8f5}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Arial,sans-serif}
-header{background:linear-gradient(115deg,#006400,#078747);color:#fff;padding:18px 22px}
-header h1{font-size:24px;margin:0 0 4px}
-header p{margin:0;color:#e6f4e9;font-size:14px}
-main{max-width:1200px;margin:18px auto;padding:0 14px}
-.panel{background:#fff;border:1px solid var(--border);border-radius:13px;padding:16px;box-shadow:0 3px 12px #163d2110;margin-bottom:14px}
-label{display:block;font-size:12px;font-weight:700;color:#526257;margin-bottom:6px}
-select,input,textarea{font:inherit;width:100%;padding:11px 12px;border:1px solid #cad8ce;border-radius:8px;background:#fff;color:var(--text)}
-button{border:0;border-radius:8px;padding:11px 15px;background:var(--green);color:#fff;font-weight:700;cursor:pointer}
-button:disabled{opacity:.55;cursor:wait}
-button.light{background:#e8f2eb;color:#155b32}
-button.outline{background:#fff;color:var(--green);border:1px solid #b7d2bf}
-.muted{color:var(--muted)}.tiny{font-size:12px}
-.notice{padding:11px 13px;border-radius:9px;margin-bottom:12px}
-.notice.error{background:#ffeded;border:1px solid #f2c7c7;color:#a11}
-.notice.ok{background:#eaf7ee;border:1px solid #bfe4c9;color:#176638}
-.notice.warn{background:#fff4d5;border:1px solid #f4df9b;color:#705600}
-.hidden{display:none!important}
-.selector{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
-.sol-meta{margin-top:9px;font-size:13px;color:var(--muted)}
-.scheme-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.scheme-card{border:1px solid #d6e6db;border-radius:12px;padding:17px;background:linear-gradient(135deg,#fff,#f5fbf7);display:flex;align-items:center;justify-content:space-between;gap:12px}
-.scheme-card h3{margin:0 0 4px;font-size:17px;color:#155b32}
-.scheme-card .count{font-size:25px;font-weight:800;color:#155b32}
-.scheme-card p{margin:0;color:var(--muted);font-size:12px}
-.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-.section-head h2{font-size:19px;margin:0}
-.searchrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:12px}
-.list{display:flex;flex-direction:column;gap:9px}
-.account{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff}
-.account-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.account-name{font-size:15px;font-weight:700;margin-bottom:3px}
-.account-sub{font-size:12px;color:var(--muted)}
-.amount{font-size:16px;font-weight:800;color:#155b32;white-space:nowrap}
-.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.tag{display:inline-block;background:#edf6ef;color:#245d38;border-radius:20px;padding:4px 8px;font-size:11px}
-.account-actions{display:flex;gap:8px;margin-top:10px}
-.account-actions button{padding:8px 12px;font-size:12px}
-.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
-.detail{background:#f6f9f7;border-radius:7px;padding:8px;min-width:0}
-.detail span{display:block;color:var(--muted);font-size:10px;font-weight:700;margin-bottom:3px}
-.detail strong{display:block;font-size:12px;overflow-wrap:anywhere;font-weight:600}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-grid .wide{grid-column:1/-1}
-.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
-.stat{background:#f5faf6;border:1px solid var(--border);border-radius:10px;padding:12px}
-.stat span{display:block;font-size:11px;color:var(--muted)}.stat strong{font-size:20px;display:block;margin-top:4px}
-footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
-@media(max-width:700px){
- header{padding:16px}header h1{font-size:20px}
- main{padding:0 9px;margin:11px auto}
- .panel{padding:12px;border-radius:11px}
- .selector{grid-template-columns:1fr}
- .selector button{width:100%}
- .scheme-grid{grid-template-columns:1fr}
- .scheme-card{padding:13px}
- .section-head{align-items:flex-start}
- .section-head h2{font-size:17px}
- .searchrow{grid-template-columns:1fr}
- .searchrow button{width:100%}
- .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
- .form-grid{grid-template-columns:1fr}
- .form-grid .wide{grid-column:auto}
- .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
- .stat{padding:9px}.stat strong{font-size:17px}
- .account-top{gap:8px}.account-name{font-size:14px}
- .amount{font-size:14px}
- .account-actions button{flex:1}
-}
-@media(max-width:380px){.detail-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.account-top{display:block}.amount{margin-top:6px}}
-</style>
-</head>
-<body>
-<header>
-  <h1>DEAF Account Management</h1>
-  <p>Account list, follow-up status and reversal tracking</p>
-</header>
-<main>
-  <div id="notice" class="notice warn">Choose a SOL ID to view DEAF account totals and account list.</div>
 
-  <section class="panel">
-    <div class="selector">
-      <div>
-        <label for="solSelect">Select SOL ID / Branch</label>
-        <select id="solSelect"><option value="">Loading SOL list…</option></select>
-        <div id="branchMeta" class="sol-meta">Select a branch to continue.</div>
-      </div>
-      <button id="viewBtn" type="button">View Account List</button>
-    </div>
-  </section>
+const SPREADSHEET_ID = '1_ITPoesKYY8NMjwwcextvIlCyG-PNsvCO2i4LFklr3I';
+const SHEET_NAME = 'Sheet1';
 
-  <section id="summaryPanel" class="panel hidden">
-    <div class="section-head"><h2>DEAF Summary</h2><span class="tag">Selected SOL</span></div>
-    <div class="scheme-grid">
-      <div class="scheme-card">
-        <div><h3>DEAF Accounts</h3><p>Total accounts for selected branch</p></div>
-        <div class="count" id="accountCount">0</div>
-      </div>
-      <div class="scheme-card">
-        <div><h3>Total Amount</h3><p>Total DEAF amount for selected branch</p></div>
-        <div class="count" id="totalAmount">₹0</div>
-      </div>
-    </div>
-    <div class="stats" style="margin-top:12px;margin-bottom:0">
-      <div class="stat"><span>Completed</span><strong id="completedCount">0</strong></div>
-      <div class="stat"><span>Pending</span><strong id="pendingCount">0</strong></div>
-      <div class="stat"><span>Reviewed</span><strong id="reviewedCount">0</strong></div>
-    </div>
-  </section>
+const PROCESS_OPTIONS = [
+  'Customer Contact',
+  'Customer Consent Obtained',
+  'Documents Awaited',
+  'Documents Received',
+  'Claim / Reversal Request Submitted',
+  'Reversal Under Process',
+  'Reversal Completed',
+  'Account Holder Not Traceable',
+  'Customer Not Interested',
+  'Other'
+];
 
-  <section id="listPanel" class="panel hidden">
-    <div class="section-head"><div><h2>DEAF Account List</h2><div class="tiny muted" id="listSubtitle"></div></div><button class="light" type="button" id="backBtn">Change SOL</button></div>
-    <div class="searchrow">
-      <input id="searchInput" type="search" placeholder="Search name, account no., customer ID…">
-      <button type="button" class="outline" id="clearSearch">Clear Search</button>
-    </div>
-    <div id="accountList" class="list"></div>
-    <p id="noAccounts" class="muted hidden">No accounts found for this SOL / search.</p>
-  </section>
+const STATUS_OPTIONS = [
+  'Pending', 'In Progress', 'Completed',
+  'Not Eligible', 'Rejected', 'Closed'
+];
 
-  <section id="editPanel" class="panel hidden">
-    <div class="section-head"><div><h2>Edit Account</h2><div id="editSubtitle" class="tiny muted"></div></div><button class="light" type="button" id="closeEdit">Close</button></div>
-    <div id="fullDetails" class="detail-grid"></div>
-    <form id="editForm" style="margin-top:16px">
-      <input type="hidden" id="recordIndex">
-      <div class="form-grid">
-        <div><label for="process">PROCESS</label><select id="process" required></select></div>
-        <div><label for="status">STATUS</label><select id="status" required></select></div>
-        <div class="wide"><label for="remark">REMARK</label><textarea id="remark" rows="3" placeholder="Enter follow-up / reversal remark"></textarea></div>
-      </div>
-      <div class="form-actions"><button id="saveBtn" type="submit">Save Update</button><button type="button" class="light" id="cancelEdit">Cancel</button></div>
-    </form>
-  </section>
-</main>
-<footer>DEAF Account Management</footer>
-<script>
-/* Use the deployed Apps Script URL supplied for the DEAF portal. */
-const API_URL = "https://script.google.com/macros/s/AKfycbyQRiCLA4RtUryREQ5We9y-ctp1y348S_vJgIRIiPplNVDv63kMZiMPKxdTd7gtmUZV/exec";
-const PROCESS_OPTIONS=["Customer Contact","Customer Consent Obtained","Documents Awaited","Documents Received","Claim / Reversal Request Submitted","Reversal Under Process","Reversal Completed","Account Holder Not Traceable","Customer Not Interested","Other"];
-const STATUS_OPTIONS=["Pending","In Progress","Completed","Not Eligible","Rejected","Closed"];
-const FIELDS=["SOL ID","Branch","NAME","CUST ID","ACCOUNT NO","SCHEME","SHCEME TYPE","AMOUNT","LAST TR DATE","DEAF TR DATE","TRAN ID","ACCOUNT STATUS","UDRN","ADD1","ADD2","PIN CODE","MOB NO","PROCESS","STATUS","REMARK"];
-const $=id=>document.getElementById(id);
-let records=[],selectedSol="",loaded=false;
-function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function val(r,k){return r[k]??"";}
-function norm(r){
- if(Array.isArray(r.values)){let o={rowNumber:r.rowNumber};FIELDS.forEach((h,i)=>o[h]=r.values[i]||"");o["SOL ID"]=r.solId||o["SOL ID"];o["ACCOUNT NO"]=r.accountNo||o["ACCOUNT NO"];o.PROCESS=r.process||o.PROCESS||"";o.STATUS=r.status||o.STATUS||"";o.REMARK=r.remark||o.REMARK||"";return o;}
- return r;
+function doGet() {
+  return json_({
+    success: true,
+    message: 'DEAF API is running'
+  });
 }
-function showNotice(msg,type="warn"){const n=$("notice");n.className="notice "+type;n.textContent=msg;n.classList.remove("hidden");}
-function hideNotice(){$("notice").classList.add("hidden");}
-function money(v){const n=Number(String(v||0).replace(/[₹,\s]/g,""));return "₹"+(Number.isFinite(n)?n:0).toLocaleString("en-IN",{maximumFractionDigits:2});}
-async function api(action,extra={}){
- const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action},extra))});
- if(!response.ok)throw new Error("HTTP "+response.status);
- return response.json();
+
+function doPost(e) {
+  try {
+    const body = e && e.postData && e.postData.contents
+      ? JSON.parse(e.postData.contents)
+      : {};
+
+    const action = String(body.action || '').toLowerCase();
+
+    if (action === 'list') {
+      return json_(listAccounts_());
+    }
+
+    if (action === 'update') {
+      return json_(updateAccount_(body));
+    }
+
+    return json_({
+      success: false,
+      error: 'Unknown API action: ' + action
+    });
+
+  } catch (err) {
+    return json_({
+      success: false,
+      error: String(err.message || err)
+    });
+  }
 }
-async function init(){
- $("process").innerHTML=PROCESS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
- $("status").innerHTML=STATUS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
- try{
-  const res=await api("list");
-  if(res.ok===false||res.success===false)throw new Error(res.error||"API request failed");
-  if(!Array.isArray(res.records))throw new Error('Apps Script response needs a "records" array for action=list.');
-  records=res.records.map(norm);loaded=true;
-  const solMap=new Map();
-  records.forEach(r=>{const id=String(val(r,"SOL ID")||r.solId||"").trim();if(id)solMap.set(id,String(val(r,"Branch")||r.branch||""));});
-  $("solSelect").innerHTML='<option value="">Select SOL ID / Branch</option>'+Array.from(solMap.entries()).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([id,name])=>`<option value="${esc(id)}">${esc(id)}${name?" — "+esc(name):""}</option>`).join("");
-  $("branchMeta").textContent=records.length+" account records loaded.";
-  hideNotice();
- }catch(e){$("solSelect").innerHTML='<option value="">Unable to load SOL list</option>';showNotice("Could not connect to the DEAF API: "+e.message+". Confirm that the deployed Apps Script supports POST action=list and returns {records:[...]} .","error");}
+
+function json_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
-function solRecords(){return records.filter(r=>String(val(r,"SOL ID")||r.solId||"").trim()===selectedSol);}
-function showSummary(){
- const a=solRecords(),sum=a.reduce((n,r)=>n+Number(String(val(r,"AMOUNT")||0).replace(/[₹,\s]/g,"")||0),0);
- $("accountCount").textContent=a.length;$("totalAmount").textContent=money(sum);
- $("completedCount").textContent=a.filter(r=>String(val(r,"STATUS")||r.status).toLowerCase()==="completed").length;
- $("pendingCount").textContent=a.filter(r=>["pending","in progress"].includes(String(val(r,"STATUS")||r.status).toLowerCase())).length;
- $("reviewedCount").textContent=a.filter(r=>String(val(r,"REVIEW STATUS")||r.reviewStatus).toLowerCase()==="reviewed").length;
- $("summaryPanel").classList.remove("hidden");
+
+function listAccounts_() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sh = ss.getSheetByName(SHEET_NAME);
+
+  if (!sh) {
+    throw new Error('Sheet1 not found');
+  }
+
+  const data = sh.getDataRange().getDisplayValues();
+
+  if (!data.length) {
+    return { success: true, headers: [], records: [] };
+  }
+
+  const headers = data[0].map(h => String(h).trim());
+  const col = {};
+
+  headers.forEach((h, i) => {
+    col[h.toUpperCase()] = i;
+  });
+
+  ['SOL ID', 'ACCOUNT NO'].forEach(h => {
+    if (col[h] === undefined) {
+      throw new Error('Missing column: ' + h);
+    }
+  });
+
+  const records = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+
+    if (!row.some(v => String(v).trim() !== '')) {
+      continue;
+    }
+
+    const item = {
+      rowNumber: i + 1,
+      values: row
+    };
+
+    headers.forEach((h, j) => {
+      item[h] = row[j];
+    });
+
+    item.solId = row[col['SOL ID']];
+    item.accountNo = row[col['ACCOUNT NO']];
+    item.process = col['PROCESS'] !== undefined
+      ? row[col['PROCESS']] : '';
+    item.status = col['STATUS'] !== undefined
+      ? row[col['STATUS']] : '';
+    item.remark = col['REMARK'] !== undefined
+      ? row[col['REMARK']] : '';
+
+    records.push(item);
+  }
+
+  return {
+    success: true,
+    headers: headers,
+    records: records,
+    processOptions: PROCESS_OPTIONS,
+    statusOptions: STATUS_OPTIONS
+  };
 }
-function viewList(){
- if(!selectedSol){showNotice("Please select a SOL ID / Branch first.","error");return;}
- hideNotice();showSummary();$("listPanel").classList.remove("hidden");$("editPanel").classList.add("hidden");
- $("listSubtitle").textContent=solRecords().length+" account(s) · SOL "+selectedSol;
- $("searchInput").value="";renderAccounts();$("listPanel").scrollIntoView({behavior:"smooth",block:"start"});
+
+function updateAccount_(body) {
+  const rowNumber = Number(body.rowNumber);
+
+  if (!Number.isInteger(rowNumber) || rowNumber < 2) {
+    throw new Error('Invalid spreadsheet row number');
+  }
+
+  if (!PROCESS_OPTIONS.includes(String(body.process || ''))) {
+    throw new Error('Invalid PROCESS value');
+  }
+
+  if (!STATUS_OPTIONS.includes(String(body.status || ''))) {
+    throw new Error('Invalid STATUS value');
+  }
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sh = ss.getSheetByName(SHEET_NAME);
+
+  if (!sh) throw new Error('Sheet1 not found');
+  if (rowNumber > sh.getLastRow()) {
+    throw new Error('Spreadsheet row does not exist');
+  }
+
+  const headers = sh
+    .getRange(1, 1, 1, sh.getLastColumn())
+    .getDisplayValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  const col = {};
+  headers.forEach((h, i) => col[h] = i + 1);
+
+  ['PROCESS', 'STATUS', 'REMARK'].forEach(h => {
+    if (!col[h]) {
+      throw new Error('Add the column ' + h + ' to row 1 first');
+    }
+  });
+
+  sh.getRange(rowNumber, col['PROCESS'])
+    .setValue(body.process);
+
+  sh.getRange(rowNumber, col['STATUS'])
+    .setValue(body.status);
+
+  sh.getRange(rowNumber, col['REMARK'])
+    .setValue(String(body.remark || ''));
+
+  SpreadsheetApp.flush();
+
+  return {
+    success: true,
+    message: 'Account updated successfully'
+  };
 }
-function renderAccounts(){
- const q=$("searchInput").value.toLowerCase().trim();
- const a=solRecords().filter(r=>!q||FIELDS.map(k=>val(r,k)).join(" ").toLowerCase().includes(q));
- $("accountList").innerHTML=a.map(r=>{
-  const ix=records.indexOf(r),st=val(r,"STATUS")||r.status||"Pending";
-  return `<article class="account">
-   <div class="account-top"><div><div class="account-name">${esc(val(r,"NAME")||"Name not available")}</div><div class="account-sub">SOL ${esc(val(r,"SOL ID")||r.solId)} · Cust ID ${esc(val(r,"CUST ID"))}</div><div class="account-sub">A/C: ${esc(val(r,"ACCOUNT NO")||r.accountNo)} · ${esc(val(r,"SCHEME"))}</div></div><div class="amount">${money(val(r,"AMOUNT"))}</div></div>
-   <div class="tags"><span class="tag">${esc(st)}</span><span class="tag">${esc(val(r,"PROCESS")||r.process||"Process not set")}</span></div>
-   <div class="account-actions"><button type="button" data-edit="${ix}">View Details / Edit</button></div>
-  </article>`;
- }).join("");
- $("noAccounts").classList.toggle("hidden",a.length>0);
- document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openEdit(Number(b.dataset.edit))));
-}
-function openEdit(i){
- const r=records[i];if(!r)return;
- $("recordIndex").value=i;
- $("editSubtitle").textContent="SOL "+(val(r,"SOL ID")||r.solId)+" · "+(val(r,"Branch")||r.branch||"")+" · "+(val(r,"ACCOUNT NO")||r.accountNo||"");
- $("fullDetails").innerHTML=FIELDS.filter(k=>!["PROCESS","STATUS","REMARK"].includes(k)).map(k=>`<div class="detail"><span>${esc(k)}</span><strong>${esc(val(r,k))||"—"}</strong></div>`).join("");
- $("process").value=val(r,"PROCESS")||r.process||PROCESS_OPTIONS[0];
- $("status").value=val(r,"STATUS")||r.status||STATUS_OPTIONS[0];
- $("remark").value=val(r,"REMARK")||r.remark||"";
- $("editPanel").classList.remove("hidden");$("editPanel").scrollIntoView({behavior:"smooth",block:"start"});
-}
-async function save(e){
- e.preventDefault();const i=Number($("recordIndex").value),r=records[i];if(!r)return;
- const rowNumber=Number(r.rowNumber||r.row||0);
- if(!rowNumber){showNotice("This record does not include its spreadsheet row number. Update Code.gs to return rowNumber for every record.","error");return;}
- $("saveBtn").disabled=true;$("saveBtn").textContent="Saving…";
- try{
-  const res=await api("update",{rowNumber,process:$("process").value,status:$("status").value,remark:$("remark").value});
-  if(res.ok===false||res.success===false)throw new Error(res.error||"Update rejected");
-  showNotice(res.message||"Account updated successfully.","ok");
-  $("editPanel").classList.add("hidden");
-  const fresh=await api("list");
-  if(Array.isArray(fresh.records)){records=fresh.records.map(norm);showSummary();renderAccounts();}
- }catch(err){showNotice("Save failed: "+err.message+". Confirm Code.gs supports action=update and validates rowNumber.","error");}
- finally{$("saveBtn").disabled=false;$("saveBtn").textContent="Save Update";}
-}
-$("viewBtn").addEventListener("click",()=>{selectedSol=$("solSelect").value;viewList();});
-$("solSelect").addEventListener("change",()=>{selectedSol=$("solSelect").value;if(selectedSol){showSummary();$("branchMeta").textContent=solRecords().length+" account(s) for selected SOL.";}else{$("summaryPanel").classList.add("hidden");$("listPanel").classList.add("hidden");}});
-$("backBtn").addEventListener("click",()=>{$("listPanel").classList.add("hidden");$("editPanel").classList.add("hidden");$("solSelect").focus();});
-$("searchInput").addEventListener("input",renderAccounts);
-$("clearSearch").addEventListener("click",()=>{$("searchInput").value="";renderAccounts();});
-$("closeEdit").addEventListener("click",()=>$("editPanel").classList.add("hidden"));
-$("cancelEdit").addEventListener("click",()=>$("editPanel").classList.add("hidden"));
-$("editForm").addEventListener("submit",save);
-init();
-</script>
-</body>
-</html>

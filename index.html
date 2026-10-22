@@ -3,211 +3,246 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DEAF Account List</title>
+<title>DEAF Account Management</title>
 <style>
-:root{--green:#006633;--line:#dce6df;--ink:#203027}
+:root{--green:#006633;--green2:#078747;--pale:#eaf5ee;--border:#dbe7df;--text:#203027;--muted:#6b7a70;--bg:#f4f8f5}
 *{box-sizing:border-box}
-body{margin:0;font:14px/1.45 Arial,sans-serif;background:#f3f7f4;color:var(--ink)}
-header{background:linear-gradient(110deg,#006400,#00994d);color:white;padding:17px 20px}
-h1{font-size:24px;margin:0 0 5px}header p{margin:0;font-size:14px}
-main{max-width:1600px;margin:14px auto;padding:0 12px}
-.notice{border-radius:8px;padding:11px 13px;margin-bottom:12px}
-.warning{background:#fff3cd;border:1px solid #ffe08a;color:#6d5200}
-.error{background:#ffeded;border:1px solid #f3caca;color:#a11}
-.success{background:#eaf7ee;border:1px solid #bfe4c9;color:#176638}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
-.card,.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px;box-shadow:0 2px 7px #173c2010}
-.card span{display:block;color:#637268;font-size:12px}.card strong{display:block;font-size:22px;margin-top:4px}
-.filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;gap:10px;align-items:end}
-.field{display:flex;flex-direction:column;gap:5px;min-width:0}
-label{font-size:12px;font-weight:bold;color:#536158}
-input,select,textarea{width:100%;font:inherit;padding:10px;border:1px solid #cbd7ce;border-radius:7px;background:white}
-button{border:0;border-radius:7px;padding:10px 14px;background:var(--green);color:white;font-weight:bold;cursor:pointer}
-button.secondary{background:#e7efe9;color:#155b32}
-.tablewrap{overflow:auto;-webkit-overflow-scrolling:touch;margin-top:10px}
-table{border-collapse:collapse;width:100%;min-width:1450px}
-th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e6ece8;vertical-align:top;white-space:nowrap}
-th{background:#eff6f1;color:#315440;font-size:12px;position:sticky;top:0}
-td.remark{white-space:normal;min-width:170px;max-width:260px}
-.small{font-size:12px;color:#68776e}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Arial,sans-serif}
+header{background:linear-gradient(115deg,#006400,#078747);color:#fff;padding:18px 22px}
+header h1{font-size:24px;margin:0 0 4px}
+header p{margin:0;color:#e6f4e9;font-size:14px}
+main{max-width:1200px;margin:18px auto;padding:0 14px}
+.panel{background:#fff;border:1px solid var(--border);border-radius:13px;padding:16px;box-shadow:0 3px 12px #163d2110;margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:700;color:#526257;margin-bottom:6px}
+select,input,textarea{font:inherit;width:100%;padding:11px 12px;border:1px solid #cad8ce;border-radius:8px;background:#fff;color:var(--text)}
+button{border:0;border-radius:8px;padding:11px 15px;background:var(--green);color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}
+button.light{background:#e8f2eb;color:#155b32}
+button.outline{background:#fff;color:var(--green);border:1px solid #b7d2bf}
+.muted{color:var(--muted)}.tiny{font-size:12px}
+.notice{padding:11px 13px;border-radius:9px;margin-bottom:12px}
+.notice.error{background:#ffeded;border:1px solid #f2c7c7;color:#a11}
+.notice.ok{background:#eaf7ee;border:1px solid #bfe4c9;color:#176638}
+.notice.warn{background:#fff4d5;border:1px solid #f4df9b;color:#705600}
 .hidden{display:none!important}
-.editgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.wide{grid-column:1/-1}
-footer{text-align:center;color:#7b8980;padding:15px;font-size:12px}
-@media(max-width:800px){
- header{padding:15px}h1{font-size:21px}
- main{padding:0 8px;margin:10px auto}
- .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
- .card{padding:11px}.card strong{font-size:19px}
- .filters{grid-template-columns:1fr}
- .filters button{width:100%}
- .panel{padding:11px}
- .tablewrap{margin-left:-2px;margin-right:-2px}
- table{min-width:1350px}
- th,td{font-size:12px;padding:8px}
- .editgrid{grid-template-columns:1fr}
- .wide{grid-column:auto}
- #editor button{width:100%;margin:4px 0}
+.selector{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.sol-meta{margin-top:9px;font-size:13px;color:var(--muted)}
+.scheme-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.scheme-card{border:1px solid #d6e6db;border-radius:12px;padding:17px;background:linear-gradient(135deg,#fff,#f5fbf7);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.scheme-card h3{margin:0 0 4px;font-size:17px;color:#155b32}
+.scheme-card .count{font-size:25px;font-weight:800;color:#155b32}
+.scheme-card p{margin:0;color:var(--muted);font-size:12px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.section-head h2{font-size:19px;margin:0}
+.searchrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:12px}
+.list{display:flex;flex-direction:column;gap:9px}
+.account{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff}
+.account-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.account-name{font-size:15px;font-weight:700;margin-bottom:3px}
+.account-sub{font-size:12px;color:var(--muted)}
+.amount{font-size:16px;font-weight:800;color:#155b32;white-space:nowrap}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag{display:inline-block;background:#edf6ef;color:#245d38;border-radius:20px;padding:4px 8px;font-size:11px}
+.account-actions{display:flex;gap:8px;margin-top:10px}
+.account-actions button{padding:8px 12px;font-size:12px}
+.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
+.detail{background:#f6f9f7;border-radius:7px;padding:8px;min-width:0}
+.detail span{display:block;color:var(--muted);font-size:10px;font-weight:700;margin-bottom:3px}
+.detail strong{display:block;font-size:12px;overflow-wrap:anywhere;font-weight:600}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .wide{grid-column:1/-1}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.stat{background:#f5faf6;border:1px solid var(--border);border-radius:10px;padding:12px}
+.stat span{display:block;font-size:11px;color:var(--muted)}.stat strong{font-size:20px;display:block;margin-top:4px}
+footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
+@media(max-width:700px){
+ header{padding:16px}header h1{font-size:20px}
+ main{padding:0 9px;margin:11px auto}
+ .panel{padding:12px;border-radius:11px}
+ .selector{grid-template-columns:1fr}
+ .selector button{width:100%}
+ .scheme-grid{grid-template-columns:1fr}
+ .scheme-card{padding:13px}
+ .section-head{align-items:flex-start}
+ .section-head h2{font-size:17px}
+ .searchrow{grid-template-columns:1fr}
+ .searchrow button{width:100%}
+ .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .form-grid{grid-template-columns:1fr}
+ .form-grid .wide{grid-column:auto}
+ .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .stat{padding:9px}.stat strong{font-size:17px}
+ .account-top{gap:8px}.account-name{font-size:14px}
+ .amount{font-size:14px}
+ .account-actions button{flex:1}
 }
-@media(max-width:420px){h1{font-size:19px}.card span{font-size:11px}.card strong{font-size:17px}.notice{font-size:12px}}
+@media(max-width:380px){.detail-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.account-top{display:block}.amount{margin-top:6px}}
 </style>
 </head>
 <body>
 <header>
-  <h1>DEAF Account List</h1>
-  <p>Select View / Edit to update PROCESS, STATUS and REMARK.</p>
+  <h1>DEAF Account Management</h1>
+  <p>Account list, follow-up status and reversal tracking</p>
 </header>
 <main>
-  <div class="notice warning">Connect your deployed Apps Script URL in <code>API_URL</code>. The backend must authorize access to live customer data.</div>
-  <div id="message" class="notice hidden" role="status"></div>
-  <div class="cards">
-    <div class="card"><span>Accounts</span><strong id="totalCount">0</strong></div>
-    <div class="card"><span>Total Amount</span><strong id="totalAmount">₹0</strong></div>
-    <div class="card"><span>Completed</span><strong id="completedCount">0</strong></div>
-    <div class="card"><span>Pending / In Progress</span><strong id="pendingCount">0</strong></div>
-  </div>
+  <div id="notice" class="notice warn">Choose a SOL ID to view DEAF account totals and account list.</div>
+
   <section class="panel">
-    <div class="filters">
-      <div class="field"><label for="solFilter">Select SOL ID / Branch</label><select id="solFilter"><option value="">All SOLs</option></select></div>
-      <div class="field"><label for="search">Search</label><input id="search" type="search" placeholder="Name, account number, customer ID, branch"></div>
-      <button type="button" class="secondary" id="resetBtn">Reset Filters</button>
+    <div class="selector">
+      <div>
+        <label for="solSelect">Select SOL ID / Branch</label>
+        <select id="solSelect"><option value="">Loading SOL list…</option></select>
+        <div id="branchMeta" class="sol-meta">Select a branch to continue.</div>
+      </div>
+      <button id="viewBtn" type="button">View Account List</button>
     </div>
   </section>
-  <section class="panel" style="margin-top:12px">
-    <h3 style="margin:0">DEAF Account List</h3>
-    <div class="small">The table scrolls horizontally on small screens.</div>
-    <div class="tablewrap"><table>
-      <thead><tr>
-        <th>SOL ID</th><th>Branch</th><th>NAME</th><th>CUST ID</th><th>ACCOUNT NO</th>
-        <th>SCHEME</th><th>SHCEME TYPE</th><th>AMOUNT</th><th>LAST TR DATE</th>
-        <th>DEAF TR DATE</th><th>TRAN ID</th><th>ACCOUNT STATUS</th><th>UDRN</th>
-        <th>ADD1</th><th>ADD2</th><th>PIN CODE</th><th>MOB NO</th>
-        <th>PROCESS</th><th>STATUS</th><th>REMARK</th><th>Action</th>
-      </tr></thead><tbody id="rows"></tbody>
-    </table></div>
-    <p id="empty" class="hidden">No records found.</p>
-  </section>
-  <section id="editor" class="panel hidden" style="margin-top:12px">
-    <h3 style="margin-top:0">Update Account</h3><p id="selectedInfo" class="small"></p>
-    <form id="editForm">
-      <input id="rowNumber" type="hidden">
-      <div class="editgrid">
-        <div class="field"><label for="process">PROCESS</label><select id="process" required></select></div>
-        <div class="field"><label for="status">STATUS</label><select id="status" required></select></div>
-        <div class="field wide"><label for="remark">REMARK</label><textarea id="remark" rows="3"></textarea></div>
+
+  <section id="summaryPanel" class="panel hidden">
+    <div class="section-head"><h2>DEAF Summary</h2><span class="tag">Selected SOL</span></div>
+    <div class="scheme-grid">
+      <div class="scheme-card">
+        <div><h3>DEAF Accounts</h3><p>Total accounts for selected branch</p></div>
+        <div class="count" id="accountCount">0</div>
       </div>
-      <p><button type="submit">Save Update</button> <button type="button" class="secondary" id="cancelBtn">Cancel</button></p>
+      <div class="scheme-card">
+        <div><h3>Total Amount</h3><p>Total DEAF amount for selected branch</p></div>
+        <div class="count" id="totalAmount">₹0</div>
+      </div>
+    </div>
+    <div class="stats" style="margin-top:12px;margin-bottom:0">
+      <div class="stat"><span>Completed</span><strong id="completedCount">0</strong></div>
+      <div class="stat"><span>Pending</span><strong id="pendingCount">0</strong></div>
+      <div class="stat"><span>Reviewed</span><strong id="reviewedCount">0</strong></div>
+    </div>
+  </section>
+
+  <section id="listPanel" class="panel hidden">
+    <div class="section-head"><div><h2>DEAF Account List</h2><div class="tiny muted" id="listSubtitle"></div></div><button class="light" type="button" id="backBtn">Change SOL</button></div>
+    <div class="searchrow">
+      <input id="searchInput" type="search" placeholder="Search name, account no., customer ID…">
+      <button type="button" class="outline" id="clearSearch">Clear Search</button>
+    </div>
+    <div id="accountList" class="list"></div>
+    <p id="noAccounts" class="muted hidden">No accounts found for this SOL / search.</p>
+  </section>
+
+  <section id="editPanel" class="panel hidden">
+    <div class="section-head"><div><h2>Edit Account</h2><div id="editSubtitle" class="tiny muted"></div></div><button class="light" type="button" id="closeEdit">Close</button></div>
+    <div id="fullDetails" class="detail-grid"></div>
+    <form id="editForm" style="margin-top:16px">
+      <input type="hidden" id="recordIndex">
+      <div class="form-grid">
+        <div><label for="process">PROCESS</label><select id="process" required></select></div>
+        <div><label for="status">STATUS</label><select id="status" required></select></div>
+        <div class="wide"><label for="remark">REMARK</label><textarea id="remark" rows="3" placeholder="Enter follow-up / reversal remark"></textarea></div>
+      </div>
+      <div class="form-actions"><button id="saveBtn" type="submit">Save Update</button><button type="button" class="light" id="cancelEdit">Cancel</button></div>
     </form>
   </section>
 </main>
-<footer>DEAF Reversal Management Portal</footer>
+<footer>DEAF Account Management</footer>
 <script>
-/* Replace this with the deployed Apps Script /exec URL. */
-const API_URL = "PASTE_YOUR_DEPLOYED_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
-
-const PROCESS_OPTIONS = [
- "Customer Contact","Customer Consent Obtained","Documents Awaited","Documents Received",
- "Claim / Reversal Request Submitted","Reversal Under Process","Reversal Completed",
- "Account Holder Not Traceable","Customer Not Interested","Other"
-];
-const STATUS_OPTIONS = ["Pending","In Progress","Completed","Not Eligible","Rejected","Closed"];
-const HEADERS = ["SOL ID","Branch","NAME","CUST ID","ACCOUNT NO","SCHEME","SHCEME TYPE","AMOUNT","LAST TR DATE","DEAF TR DATE","TRAN ID","ACCOUNT STATUS","UDRN","ADD1","ADD2","PIN CODE","MOB NO","PROCESS","STATUS","REMARK"];
-const $ = id => document.getElementById(id);
-let records = [];
-
-function esc(v){return String(v == null ? "" : v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function showMessage(text,type){const m=$("message");m.textContent=text;m.className="notice "+(type||"error");}
+/* Use the deployed Apps Script URL supplied for the DEAF portal. */
+const API_URL = "https://script.google.com/macros/s/AKfycbyQRiCLA4RtUryREQ5We9y-ctp1y348S_vJgIRIiPplNVDv63kMZiMPKxdTd7gtmUZV/exec";
+const PROCESS_OPTIONS=["Customer Contact","Customer Consent Obtained","Documents Awaited","Documents Received","Claim / Reversal Request Submitted","Reversal Under Process","Reversal Completed","Account Holder Not Traceable","Customer Not Interested","Other"];
+const STATUS_OPTIONS=["Pending","In Progress","Completed","Not Eligible","Rejected","Closed"];
+const FIELDS=["SOL ID","Branch","NAME","CUST ID","ACCOUNT NO","SCHEME","SHCEME TYPE","AMOUNT","LAST TR DATE","DEAF TR DATE","TRAN ID","ACCOUNT STATUS","UDRN","ADD1","ADD2","PIN CODE","MOB NO","PROCESS","STATUS","REMARK"];
+const $=id=>document.getElementById(id);
+let records=[],selectedSol="",loaded=false;
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function val(r,k){return r[k]??"";}
+function norm(r){
+ if(Array.isArray(r.values)){let o={rowNumber:r.rowNumber};FIELDS.forEach((h,i)=>o[h]=r.values[i]||"");o["SOL ID"]=r.solId||o["SOL ID"];o["ACCOUNT NO"]=r.accountNo||o["ACCOUNT NO"];o.PROCESS=r.process||o.PROCESS||"";o.STATUS=r.status||o.STATUS||"";o.REMARK=r.remark||o.REMARK||"";return o;}
+ return r;
+}
+function showNotice(msg,type="warn"){const n=$("notice");n.className="notice "+type;n.textContent=msg;n.classList.remove("hidden");}
+function hideNotice(){$("notice").classList.add("hidden");}
 function money(v){const n=Number(String(v||0).replace(/[₹,\s]/g,""));return "₹"+(Number.isFinite(n)?n:0).toLocaleString("en-IN",{maximumFractionDigits:2});}
-function normRecord(r){
-  if(r && Array.isArray(r.values)){
-    const obj={rowNumber:r.rowNumber};
-    HEADERS.forEach((h,i)=>obj[h]=r.values[i]||"");
-    obj["SOL ID"]=r.solId||obj["SOL ID"];
-    obj["ACCOUNT NO"]=r.accountNo||obj["ACCOUNT NO"];
-    obj.PROCESS=r.process||obj.PROCESS||"";
-    obj.STATUS=r.status||obj.STATUS||"";
-    obj.REMARK=r.remark||obj.REMARK||"";
-    return obj;
-  }
-  return r || {};
+async function api(action,extra={}){
+ const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action},extra))});
+ if(!response.ok)throw new Error("HTTP "+response.status);
+ return response.json();
 }
-function getVal(r, key){return r[key] == null ? "" : r[key];}
-async function api(action, extra){
-  const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action},extra||{}))});
-  if(!res.ok) throw new Error("API HTTP "+res.status);
-  return await res.json();
+async function init(){
+ $("process").innerHTML=PROCESS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
+ $("status").innerHTML=STATUS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
+ try{
+  const res=await api("list");
+  if(res.ok===false||res.success===false)throw new Error(res.error||"API request failed");
+  if(!Array.isArray(res.records))throw new Error('Apps Script response needs a "records" array for action=list.');
+  records=res.records.map(norm);loaded=true;
+  const solMap=new Map();
+  records.forEach(r=>{const id=String(val(r,"SOL ID")||r.solId||"").trim();if(id)solMap.set(id,String(val(r,"Branch")||r.branch||""));});
+  $("solSelect").innerHTML='<option value="">Select SOL ID / Branch</option>'+Array.from(solMap.entries()).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([id,name])=>`<option value="${esc(id)}">${esc(id)}${name?" — "+esc(name):""}</option>`).join("");
+  $("branchMeta").textContent=records.length+" account records loaded.";
+  hideNotice();
+ }catch(e){$("solSelect").innerHTML='<option value="">Unable to load SOL list</option>';showNotice("Could not connect to the DEAF API: "+e.message+". Confirm that the deployed Apps Script supports POST action=list and returns {records:[...]} .","error");}
 }
-async function loadData(){
-  if(!API_URL.startsWith("https://script.google.com/macros/s/") || API_URL.includes("PASTE_YOUR")){
-    showMessage("Set API_URL in index.html to your deployed Apps Script /exec URL. The table cannot load until configured.","error");return;
-  }
-  try{
-    const data=await api("list");
-    if(data.ok===false || data.success===false) throw new Error(data.error||"Apps Script returned an error");
-    if(!Array.isArray(data.records)) throw new Error("API response has no records array. Check Code.gs action=list response.");
-    records=data.records.map(normRecord);
-    fillSelects();render();
-    $("message").classList.add("hidden");
-  }catch(e){showMessage("Could not load DEAF data: "+e.message+". Ensure Apps Script supports POST action=list and its deployment permissions/CORS are configured.","error");}
+function solRecords(){return records.filter(r=>String(val(r,"SOL ID")||r.solId||"").trim()===selectedSol);}
+function showSummary(){
+ const a=solRecords(),sum=a.reduce((n,r)=>n+Number(String(val(r,"AMOUNT")||0).replace(/[₹,\s]/g,"")||0),0);
+ $("accountCount").textContent=a.length;$("totalAmount").textContent=money(sum);
+ $("completedCount").textContent=a.filter(r=>String(val(r,"STATUS")||r.status).toLowerCase()==="completed").length;
+ $("pendingCount").textContent=a.filter(r=>["pending","in progress"].includes(String(val(r,"STATUS")||r.status).toLowerCase())).length;
+ $("reviewedCount").textContent=a.filter(r=>String(val(r,"REVIEW STATUS")||r.reviewStatus).toLowerCase()==="reviewed").length;
+ $("summaryPanel").classList.remove("hidden");
 }
-function fillSelects(){
-  const sols=[...new Set(records.map(r=>String(getVal(r,"SOL ID")||r.solId||"")).filter(Boolean))].sort();
-  $("solFilter").innerHTML='<option value="">All SOLs</option>'+sols.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
-  $("process").innerHTML=PROCESS_OPTIONS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
-  $("status").innerHTML=STATUS_OPTIONS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+function viewList(){
+ if(!selectedSol){showNotice("Please select a SOL ID / Branch first.","error");return;}
+ hideNotice();showSummary();$("listPanel").classList.remove("hidden");$("editPanel").classList.add("hidden");
+ $("listSubtitle").textContent=solRecords().length+" account(s) · SOL "+selectedSol;
+ $("searchInput").value="";renderAccounts();$("listPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
-function filtered(){
-  const sol=$("solFilter").value,q=$("search").value.toLowerCase().trim();
-  return records.filter(r=>{
-    const sid=String(getVal(r,"SOL ID")||r.solId||"");
-    const hay=HEADERS.map(h=>getVal(r,h)).join(" ").toLowerCase();
-    return (!sol||sid===sol)&&(!q||hay.includes(q));
-  });
+function renderAccounts(){
+ const q=$("searchInput").value.toLowerCase().trim();
+ const a=solRecords().filter(r=>!q||FIELDS.map(k=>val(r,k)).join(" ").toLowerCase().includes(q));
+ $("accountList").innerHTML=a.map(r=>{
+  const ix=records.indexOf(r),st=val(r,"STATUS")||r.status||"Pending";
+  return `<article class="account">
+   <div class="account-top"><div><div class="account-name">${esc(val(r,"NAME")||"Name not available")}</div><div class="account-sub">SOL ${esc(val(r,"SOL ID")||r.solId)} · Cust ID ${esc(val(r,"CUST ID"))}</div><div class="account-sub">A/C: ${esc(val(r,"ACCOUNT NO")||r.accountNo)} · ${esc(val(r,"SCHEME"))}</div></div><div class="amount">${money(val(r,"AMOUNT"))}</div></div>
+   <div class="tags"><span class="tag">${esc(st)}</span><span class="tag">${esc(val(r,"PROCESS")||r.process||"Process not set")}</span></div>
+   <div class="account-actions"><button type="button" data-edit="${ix}">View Details / Edit</button></div>
+  </article>`;
+ }).join("");
+ $("noAccounts").classList.toggle("hidden",a.length>0);
+ document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openEdit(Number(b.dataset.edit))));
 }
-function render(){
-  const list=filtered();
-  $("totalCount").textContent=list.length;
-  $("totalAmount").textContent=money(list.reduce((s,r)=>s+Number(String(getVal(r,"AMOUNT")||0).replace(/[₹,\s]/g,"")||0),0));
-  $("completedCount").textContent=list.filter(r=>String(getVal(r,"STATUS")||r.status).toLowerCase()==="completed").length;
-  $("pendingCount").textContent=list.filter(r=>["pending","in progress"].includes(String(getVal(r,"STATUS")||r.status).toLowerCase())).length;
-  $("rows").innerHTML=list.map((r)=>{
-    const cells=HEADERS.map(h=>`<td class="${h==="REMARK"?"remark":""}">${esc(getVal(r,h)|| (h==="PROCESS"?r.process:h==="STATUS"?r.status:h==="REMARK"?r.remark:""))}</td>`).join("");
-    const ix=records.indexOf(r);
-    return `<tr><td>${esc(getVal(r,"SOL ID")||r.solId)}</td>${cells.slice(cells.indexOf("</td>")+5)}<td><button type="button" data-index="${ix}" class="editBtn">View / Edit</button></td></tr>`;
-  }).join("");
-  // Rebuild rows safely with one cell per header (avoids duplicated SOL cell)
-  $("rows").innerHTML=list.map(r=>{
-    const ix=records.indexOf(r);
-    return "<tr>"+HEADERS.map(h=>`<td class="${h==="REMARK"?"remark":""}">${esc(getVal(r,h)|| (h==="PROCESS"?r.process:h==="STATUS"?r.status:h==="REMARK"?r.remark:""))}</td>`).join("")+
-      `<td><button type="button" class="editBtn" data-index="${ix}">View / Edit</button></td></tr>`;
-  }).join("");
-  $("empty").classList.toggle("hidden",list.length>0);
-  document.querySelectorAll(".editBtn").forEach(b=>b.addEventListener("click",()=>openEditor(Number(b.dataset.index))));
+function openEdit(i){
+ const r=records[i];if(!r)return;
+ $("recordIndex").value=i;
+ $("editSubtitle").textContent="SOL "+(val(r,"SOL ID")||r.solId)+" · "+(val(r,"Branch")||r.branch||"")+" · "+(val(r,"ACCOUNT NO")||r.accountNo||"");
+ $("fullDetails").innerHTML=FIELDS.filter(k=>!["PROCESS","STATUS","REMARK"].includes(k)).map(k=>`<div class="detail"><span>${esc(k)}</span><strong>${esc(val(r,k))||"—"}</strong></div>`).join("");
+ $("process").value=val(r,"PROCESS")||r.process||PROCESS_OPTIONS[0];
+ $("status").value=val(r,"STATUS")||r.status||STATUS_OPTIONS[0];
+ $("remark").value=val(r,"REMARK")||r.remark||"";
+ $("editPanel").classList.remove("hidden");$("editPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
-function openEditor(i){
-  const r=records[i];if(!r)return;
-  $("rowNumber").value=r.rowNumber||"";
-  $("selectedInfo").textContent="SOL "+(getVal(r,"SOL ID")||r.solId||"")+" · "+getVal(r,"Branch")+" · "+getVal(r,"NAME")+" · Account "+(getVal(r,"ACCOUNT NO")||r.accountNo||"");
-  $("process").value=getVal(r,"PROCESS")||r.process||PROCESS_OPTIONS[0];
-  $("status").value=getVal(r,"STATUS")||r.status||STATUS_OPTIONS[0];
-  $("remark").value=getVal(r,"REMARK")||r.remark||"";
-  $("editor").dataset.index=String(i);$("editor").classList.remove("hidden");$("editor").scrollIntoView({behavior:"smooth"});
+async function save(e){
+ e.preventDefault();const i=Number($("recordIndex").value),r=records[i];if(!r)return;
+ const rowNumber=Number(r.rowNumber||r.row||0);
+ if(!rowNumber){showNotice("This record does not include its spreadsheet row number. Update Code.gs to return rowNumber for every record.","error");return;}
+ $("saveBtn").disabled=true;$("saveBtn").textContent="Saving…";
+ try{
+  const res=await api("update",{rowNumber,process:$("process").value,status:$("status").value,remark:$("remark").value});
+  if(res.ok===false||res.success===false)throw new Error(res.error||"Update rejected");
+  showNotice(res.message||"Account updated successfully.","ok");
+  $("editPanel").classList.add("hidden");
+  const fresh=await api("list");
+  if(Array.isArray(fresh.records)){records=fresh.records.map(norm);showSummary();renderAccounts();}
+ }catch(err){showNotice("Save failed: "+err.message+". Confirm Code.gs supports action=update and validates rowNumber.","error");}
+ finally{$("saveBtn").disabled=false;$("saveBtn").textContent="Save Update";}
 }
-$("editForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const i=Number($("editor").dataset.index),r=records[i];
-  if(!r){showMessage("Select an account first.","error");return;}
-  try{
-    const result=await api("update",{rowNumber:Number($("rowNumber").value||r.rowNumber),process:$("process").value,status:$("status").value,remark:$("remark").value});
-    if(result.success===false||result.ok===false)throw new Error(result.error||"Update failed");
-    showMessage(result.message||"Update sent. Reloading records…","success");
-    $("editor").classList.add("hidden");await loadData();
-  }catch(err){showMessage("Update failed: "+err.message+". Verify that Code.gs supports POST action=update.","error");}
-});
-$("solFilter").addEventListener("change",render);
-$("search").addEventListener("input",render);
-$("resetBtn").addEventListener("click",()=>{$("solFilter").value="";$("search").value="";render();});
-$("cancelBtn").addEventListener("click",()=>$("editor").classList.add("hidden"));
-loadData();
+$("viewBtn").addEventListener("click",()=>{selectedSol=$("solSelect").value;viewList();});
+$("solSelect").addEventListener("change",()=>{selectedSol=$("solSelect").value;if(selectedSol){showSummary();$("branchMeta").textContent=solRecords().length+" account(s) for selected SOL.";}else{$("summaryPanel").classList.add("hidden");$("listPanel").classList.add("hidden");}});
+$("backBtn").addEventListener("click",()=>{$("listPanel").classList.add("hidden");$("editPanel").classList.add("hidden");$("solSelect").focus();});
+$("searchInput").addEventListener("input",renderAccounts);
+$("clearSearch").addEventListener("click",()=>{$("searchInput").value="";renderAccounts();});
+$("closeEdit").addEventListener("click",()=>$("editPanel").classList.add("hidden"));
+$("cancelEdit").addEventListener("click",()=>$("editPanel").classList.add("hidden"));
+$("editForm").addEventListener("submit",save);
+init();
 </script>
-</body></html>
+</body>
+</html>

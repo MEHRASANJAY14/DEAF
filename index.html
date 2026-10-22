@@ -49,6 +49,9 @@ button.outline{background:#fff;color:var(--green);border:1px solid #b7d2bf}
 .amount{font-size:16px;font-weight:800;color:#155b32;white-space:nowrap}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .tag{display:inline-block;background:#edf6ef;color:#245d38;border-radius:20px;padding:4px 8px;font-size:11px}
+.tag.pending{background:#ffebeb;color:#b42318;border:1px solid #f4bcbc;font-weight:700}
+.tag.reviewed{background:#e6f7eb;color:#16713a;border:1px solid #b7e3c4;font-weight:700}
+#saveMessage{margin-top:14px;font-weight:700}
 .account-actions{display:flex;gap:8px;margin-top:10px}
 .account-actions button{padding:8px 12px;font-size:12px}
 .detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
@@ -311,7 +314,7 @@ function renderAccounts(){
  const a=solRecords().filter(r=>!q||FIELDS.map(k=>val(r,k)).join(" ").toLowerCase().includes(q));
  $("accountList").innerHTML=a.map(r=>{
   const ix=records.indexOf(r),st=val(r,"STATUS")||r.status||"Pending";
-  return `<article class="account"><div class="account-top"><div><div class="account-name">${esc(val(r,"NAME")||"Name not available")}</div><div class="account-sub">SOL ${esc(val(r,"SOL ID")||r.solId)} · Cust ID ${esc(val(r,"CUST ID"))}</div><div class="account-sub">A/C: ${esc(val(r,"ACCOUNT NO")||r.accountNo)} · ${esc(val(r,"SCHEME"))}</div></div><div class="amount">${money(val(r,"AMOUNT"))}</div></div><div class="tags"><span class="tag">${esc(st)}</span><span class="tag">${esc(val(r,"PROCESS")||r.process||"Process not set")}</span></div><div class="account-actions"><button type="button" data-edit="${ix}">View Details / Edit</button></div></article>`;
+  return `<article class="account"><div class="account-top"><div><div class="account-name">${esc(val(r,"NAME")||"Name not available")}</div><div class="account-sub">SOL ${esc(val(r,"SOL ID")||r.solId)} · Cust ID ${esc(val(r,"CUST ID"))}</div><div class="account-sub">A/C: ${esc(val(r,"ACCOUNT NO")||r.accountNo)} · ${esc(val(r,"SCHEME"))}</div></div><div class="amount">${money(val(r,"AMOUNT"))}</div></div><div class="tags"><span class="tag ${String(st).toLowerCase()==="pending"?"pending":""}">${esc(st)}</span><span class="tag">${esc(val(r,"PROCESS")||r.process||"Process not set")}</span><span class="tag ${String(val(r,"REVIEW STATUS")||r.reviewStatus||"Pending").toLowerCase()==="reviewed"?"reviewed":"pending"}">${esc(val(r,"REVIEW STATUS")||r.reviewStatus||"Pending")}</span></div><div class="account-actions"><button type="button" data-edit="${ix}">View Details / Edit</button></div></article>`;
  }).join("");
  $("noAccounts").classList.toggle("hidden",a.length>0);
  document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openEdit(Number(b.dataset.edit))));
@@ -319,6 +322,8 @@ function renderAccounts(){
 function openEdit(i){
  const r=records[i];if(!r)return;
  $("recordIndex").value=i;
+ $("saveMessage").className="notice hidden";
+ $("saveMessage").textContent="";
  $("editSubtitle").textContent="SOL "+(val(r,"SOL ID")||r.solId)+" · "+(val(r,"Branch")||r.branch||"")+" · "+(val(r,"ACCOUNT NO")||r.accountNo||"");
 
  // Display all columns in popup; only PROCESS, STATUS, REMARK are editable.
@@ -341,21 +346,33 @@ async function save(e){
  e.preventDefault();
  const i=Number($("recordIndex").value),r=records[i];if(!r)return;
  const rowNumber=Number(r.rowNumber||r.row||0);
- if(!rowNumber){showNotice("Record row number missing. Ensure Code.gs returns rowNumber.","error");return;}
+ if(!rowNumber){
+   $("saveMessage").className="notice error";
+   $("saveMessage").textContent="Record row number missing. Ensure Code.gs returns rowNumber.";
+   $("saveMessage").classList.remove("hidden");
+   return;
+ }
  const updates={};
  ["PROCESS","STATUS","REMARK"].forEach(key=>{
     const el=document.querySelector('#editableFields [data-column="'+key+'"]');
     updates[key]=el ? el.value.trim() : "";
   });
  for(const [key,value] of Object.entries(updates)){
-   if(value===""){showNotice("Please fill all compulsory fields. Missing: "+key,"error");return;}
+   if(value===""){
+     $("saveMessage").className="notice error";
+     $("saveMessage").textContent="Please fill all compulsory fields. Missing: "+key;
+     $("saveMessage").classList.remove("hidden");
+     return;
+   }
  }
  $("saveBtn").disabled=true;$("saveBtn").textContent="Saving…";
  try{
   const res=await api("update",{rowNumber,updates});
   if(res.success===false||res.ok===false)throw new Error(res.error||"Update failed");
-  showNotice(res.message||"Account updated successfully.","ok");
-  $("editPanel").classList.add("hidden");
+  const successText = "Updated successfully!";
+  $("saveMessage").className="notice ok";
+  $("saveMessage").textContent="✓ "+successText;
+  $("saveMessage").classList.remove("hidden");
   Object.keys(updates).forEach(key=>{r[key]=updates[key];});
   r.process=updates.PROCESS||r.process;
   r.status=updates.STATUS||r.status;
@@ -366,7 +383,11 @@ async function save(e){
   api("list").then(fresh=>{
     if(Array.isArray(fresh.records)){records=fresh.records.map(norm);showSummary();renderAccounts();}
   }).catch(()=>{});
- }catch(err){showNotice("Save failed: "+err.message+". Check Code.gs update action and deployment.","error");}
+ }catch(err){
+   $("saveMessage").className="notice error";
+   $("saveMessage").textContent="Save failed: "+err.message+". Check Code.gs update action and deployment.";
+   $("saveMessage").classList.remove("hidden");
+ }
  finally{$("saveBtn").disabled=false;$("saveBtn").textContent="Save Update";}
 }
 $("solSelect").addEventListener("change",()=>{

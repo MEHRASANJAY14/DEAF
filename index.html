@@ -92,7 +92,61 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
     <div class="selector">
       <div>
         <label for="solSelect">Select SOL ID / Branch</label>
-        <select id="solSelect"><option value="">Loading SOL list…</option></select>
+        <select id="solSelect"><option value="">Select SOL ID / Branch</option>
+<option value="12010">12010 — JABALPUR</option>
+<option value="12020">12020 — RANJHI</option>
+<option value="12030">12030 — SIHORA (JBP)</option>
+<option value="12040">12040 — KHITOLA BAZAR</option>
+<option value="12050">12050 — SAHAJPUR</option>
+<option value="12060">12060 — SHAHPURA (JBP)</option>
+<option value="12070">12070 — PANAGAR</option>
+<option value="12080">12080 — LAMKANA</option>
+<option value="12090">12090 — ADHARTAL JABALPUR</option>
+<option value="12100">12100 — PATAN</option>
+<option value="12110">12110 — MANJHOLI</option>
+<option value="12120">12120 — PISANHARI MADHIYA</option>
+<option value="12130">12130 — EKTA CHOUK, UKHARIROAD</option>
+<option value="12140">12140 — KARMETA GRAM</option>
+<option value="12150">12150 — BARGI</option>
+<option value="12160">12160 — GWARIGHAT ROAD</option>
+<option value="12170">12170 — BILHARI</option>
+<option value="12180">12180 — KUA</option>
+<option value="12190">12190 — KYMORE</option>
+<option value="12200">12200 — DEORA KALA</option>
+<option value="12210">12210 — VILAYAT KALA</option>
+<option value="12220">12220 — DASHARMAN</option>
+<option value="12230">12230 — AMGAWAN</option>
+<option value="12240">12240 — KATNI</option>
+<option value="12250">12250 — DEORI TOLA</option>
+<option value="12260">12260 — UMARIYAPAN</option>
+<option value="12270">12270 — BADWARA</option>
+<option value="12280">12280 — VIJAY RAGHAVGARH</option>
+<option value="12290">12290 — KHIRHANI DURGA CHOWK</option>
+<option value="12300">12300 — BARAHI</option>
+<option value="12310">12310 — BAHORIBAND</option>
+<option value="12320">12320 — NARSINGHPUR</option>
+<option value="12330">12330 — STATION GANJ NARSINGHPUR</option>
+<option value="12340">12340 — AMGAON BADA</option>
+<option value="12350">12350 — KANWAS</option>
+<option value="12360">12360 — PANARI</option>
+<option value="12370">12370 — BOHANI</option>
+<option value="12380">12380 — KARELI</option>
+<option value="12390">12390 — BAGASPUR</option>
+<option value="12400">12400 — SAIKHEDA</option>
+<option value="12410">12410 — CHICHALI</option>
+<option value="12420">12420 — BARAHATA</option>
+<option value="12430">12430 — KAMTI IMALYA</option>
+<option value="12440">12440 — SINGHPUR BADA</option>
+<option value="12450">12450 — GADARWARA</option>
+<option value="12460">12460 — DEORI LOLRI</option>
+<option value="12470">12470 — NARSINGHPUR BASTI</option>
+<option value="12480">12480 — KARAKBEL</option>
+<option value="12490">12490 — SOORWARI</option>
+<option value="12500">12500 — TENDUKHEDA</option>
+<option value="12510">12510 — GOTEGAON</option>
+<option value="12520">12520 — COLLECTORATE, NARSINGHPUR</option>
+<option value="12530">12530 — ADARSH SHIKSHAN SAMITI, KARELI</option>
+</select>
         <div id="branchMeta" class="sol-meta">Loading branch details…</div>
       </div>
       <button id="viewBtn" type="button">View Account List</button>
@@ -144,8 +198,11 @@ function hideNotice(){$("notice").classList.add("hidden");}
 function money(v){const n=Number(String(v||0).replace(/[₹,\s]/g,""));return "₹"+(Number.isFinite(n)?n:0).toLocaleString("en-IN",{maximumFractionDigits:2});}
 function populateBranchDropdown(){
  const select=$("solSelect");
+ // Always rebuild from the bundled static master; no network/API call is needed.
+ const current=select.value;
  select.innerHTML='<option value="">Select SOL ID / Branch</option>'+
    BRANCH_MASTER.map(b=>`<option value="${esc(b.solId)}">${esc(b.solId)} — ${esc(b.branch)}</option>`).join("");
+ if(current && BRANCH_MASTER.some(b=>String(b.solId)===String(current))) select.value=current;
  $("branchMeta").textContent=BRANCH_MASTER.length+" branches available. Select a branch.";
 }
 async function api(action,extra={}){
@@ -169,7 +226,7 @@ async function init(){
  $("process").innerHTML=PROCESS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
  $("status").innerHTML=STATUS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
 
- // Load SOL dropdown immediately from the local branch master.
+ // Rebuild the bundled static SOL list immediately. Branch selection does not depend on API.
  populateBranchDropdown();
 
  try{

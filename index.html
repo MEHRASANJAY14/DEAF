@@ -149,7 +149,7 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
 </select>
         <div id="branchMeta" class="sol-meta">Loading branch details…</div>
       </div>
-      <button id="viewBtn" type="button">View Account List</button>
+      
     </div>
   </section>
   <section id="summaryPanel" class="panel hidden">
@@ -248,11 +248,9 @@ async function init(){
   records=res.records.map(norm);
 
   // Preserve all 53 master branches; update labels from records when branch names exist.
+  // Use only the official static branch master (53 SOLs).
+  // Account rows may contain unexpected SOL values; do not add them to the dropdown.
   const names=new Map(BRANCH_MASTER.map(b=>[String(b.solId),b.branch]));
-  records.forEach(r=>{
-    const id=String(val(r,"SOL ID")||r.solId||"").trim();
-    if(id && (val(r,"Branch")||r.branch)) names.set(id,String(val(r,"Branch")||r.branch));
-  });
   const previousSol = $("solSelect").value || selectedSol;
   $("solSelect").innerHTML='<option value="">Select SOL ID / Branch</option>'+
     Array.from(names.entries()).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}))
@@ -359,8 +357,23 @@ async function save(e){
  }catch(err){showNotice("Save failed: "+err.message+". Check Code.gs update action and deployment.","error");}
  finally{$("saveBtn").disabled=false;$("saveBtn").textContent="Save Update";}
 }
-$("viewBtn").addEventListener("click",()=>{selectedSol=$("solSelect").value;viewList();});
-$("solSelect").addEventListener("change",()=>{selectedSol=$("solSelect").value;if(selectedSol){showSummary();$("branchMeta").textContent=solRecords().length+" account(s) for selected SOL.";}else{$("summaryPanel").classList.add("hidden");$("listPanel").classList.add("hidden");}});
+$("solSelect").addEventListener("change",()=>{
+  selectedSol=$("solSelect").value;
+  if(selectedSol){
+    showSummary();
+    $("listPanel").classList.remove("hidden");
+    $("editPanel").classList.add("hidden");
+    $("listSubtitle").textContent=solRecords().length+" account(s) · SOL "+selectedSol;
+    $("searchInput").value="";
+    renderAccounts();
+    $("branchMeta").textContent=solRecords().length+" account(s) for selected SOL.";
+  }else{
+    $("summaryPanel").classList.add("hidden");
+    $("listPanel").classList.add("hidden");
+    $("editPanel").classList.add("hidden");
+    $("branchMeta").textContent=BRANCH_MASTER.length+" branches available. Select a branch.";
+  }
+});
 $("backBtn").addEventListener("click",()=>{$("listPanel").classList.add("hidden");$("editPanel").classList.add("hidden");$("solSelect").focus();});
 $("searchInput").addEventListener("input",renderAccounts);
 $("clearSearch").addEventListener("click",()=>{$("searchInput").value="";renderAccounts();});

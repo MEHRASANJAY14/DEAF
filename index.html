@@ -136,32 +136,33 @@ let records=[],selectedSol="";
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function val(r,k){return r[k]??"";}
 function norm(r){
- if(Array.isArray(r.values)){
-  const o={rowNumber:r.rowNumber};
-  FIELDS.forEach((h,i)=>o[h]=r.values[i]||"");
-  Object.keys(r).forEach(k=>{if(k!=="values")o[k]=r[k];});
-  o["SOL ID"]=r.solId||o["SOL ID"];
-  o["ACCOUNT NO"]=r.accountNo||o["ACCOUNT NO"];
-  o.PROCESS=r.process||o.PROCESS||"";
-  o.STATUS=r.status||o.STATUS||"";
-  o.REMARK=r.remark||o.REMARK||"";
-  o["REVIEW STATUS"]=r.reviewStatus||o["REVIEW STATUS"]||"";
-  return o;
- }
  return r;
 }
 function showNotice(msg,type="warn"){const n=$("notice");n.className="notice "+type;n.textContent=msg;n.classList.remove("hidden");}
 function hideNotice(){$("notice").classList.add("hidden");}
 function money(v){const n=Number(String(v||0).replace(/[₹,\s]/g,""));return "₹"+(Number.isFinite(n)?n:0).toLocaleString("en-IN",{maximumFractionDigits:2});}
 async function api(action,extra={}){
- const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action},extra))});
- if(!response.ok)throw new Error("HTTP "+response.status);
- return response.json();
+ const controller = new AbortController();
+ const timeoutId = setTimeout(()=>controller.abort(), 20000);
+ try {
+  const response=await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(Object.assign({action},extra)),
+    signal:controller.signal
+  });
+  if(!response.ok)throw new Error("HTTP "+response.status);
+  return await response.json();
+ } catch(err) {
+  if(err.name==="AbortError") throw new Error("API timed out after 20 seconds");
+  throw err;
+ } finally { clearTimeout(timeoutId); }
 }
 async function init(){
  $("process").innerHTML=PROCESS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
  $("status").innerHTML=STATUS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
  try{
+  showNotice("Loading accounts…","warn");
   const res=await api("list");
   if(res.success===false||res.ok===false)throw new Error(res.error||"API request failed");
   if(!Array.isArray(res.records))throw new Error('API response must contain a "records" array.');
@@ -253,8 +254,16 @@ async function save(e){
   if(res.success===false||res.ok===false)throw new Error(res.error||"Update failed");
   showNotice(res.message||"Account updated successfully.","ok");
   $("editPanel").classList.add("hidden");
-  const fresh=await api("list");
-  if(Array.isArray(fresh.records)){records=fresh.records.map(norm);showSummary();renderAccounts();}
+  Object.keys(updates).forEach(key=>{r[key]=updates[key];});
+  r.process=updates.PROCESS||r.process;
+  r.status=updates.STATUS||r.status;
+  r.remark=updates.REMARK||r.remark;
+  showSummary();
+  renderAccounts();
+  // Refresh silently after the immediate UI update.
+  api("list").then(fresh=>{
+    if(Array.isArray(fresh.records)){records=fresh.records.map(norm);showSummary();renderAccounts();}
+  }).catch(()=>{});
  }catch(err){showNotice("Save failed: "+err.message+". Check Code.gs update action and deployment.","error");}
  finally{$("saveBtn").disabled=false;$("saveBtn").textContent="Save Update";}
 }

@@ -236,8 +236,6 @@ function api(action,extra={}){
  });
 }
 async function init(){
- $("process").innerHTML=PROCESS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
- $("status").innerHTML=STATUS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
 
  // Rebuild the bundled static SOL list immediately. Branch selection does not depend on API.
  populateBranchDropdown();
@@ -255,11 +253,15 @@ async function init(){
     const id=String(val(r,"SOL ID")||r.solId||"").trim();
     if(id && (val(r,"Branch")||r.branch)) names.set(id,String(val(r,"Branch")||r.branch));
   });
+  const previousSol = $("solSelect").value || selectedSol;
   $("solSelect").innerHTML='<option value="">Select SOL ID / Branch</option>'+
     Array.from(names.entries()).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}))
     .map(([id,name])=>`<option value="${esc(id)}">${esc(id)} — ${esc(name)}</option>`).join("");
+  if(previousSol && names.has(String(previousSol))) $("solSelect").value=String(previousSol);
+  selectedSol = $("solSelect").value || "";
   $("branchMeta").textContent=records.length+" account records loaded; "+names.size+" branches available.";
   showNotice("Account data loaded successfully.","ok");
+  if(selectedSol) showSummary();
  }catch(e){
   // Keep static SOL dropdown available even if API/CORS is temporarily failing.
   showNotice("SOL list is ready, but account data could not load: "+e.message+". Check Apps Script deployment/API access.","error");

@@ -1,397 +1,213 @@
-<?php
-/*
- * DEAF Reversal Management Portal - PHP Frontend
- * Backend: Google Apps Script Web App
- *
- * IMPORTANT:
- * - Configure the Apps Script URL below.
- * - This frontend has no login screen.
- * - The Apps Script backend must enforce authorization for real bank data.
- * - Use HTTPS hosting with PHP cURL enabled.
- */
-
-$API_URL = 'PASTE_YOUR_DEPLOYED_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
-
-function h($value) {
-    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-}
-
-$apiConfigured = (strpos($API_URL, 'https://script.google.com/macros/s/') === 0);
-
-function call_api($url, $payload = null) {
-    if (!function_exists('curl_init')) {
-        return array('success' => false, 'error' => 'PHP cURL extension is not enabled on this server.');
-    }
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 45);
-
-    if ($payload !== null) {
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    }
-
-    $response = curl_exec($ch);
-    $error = curl_error($ch);
-    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($response === false) {
-        return array('success' => false, 'error' => 'Backend connection failed: ' . $error);
-    }
-
-    $decoded = json_decode($response, true);
-    if (!is_array($decoded)) {
-        return array(
-            'success' => false,
-            'error' => 'Backend returned an invalid response (HTTP ' . $status . ').'
-        );
-    }
-
-    if ($status < 200 || $status >= 300) {
-        $decoded['success'] = false;
-        if (empty($decoded['error'])) {
-            $decoded['error'] = 'Backend HTTP status ' . $status;
-        }
-    }
-
-    return $decoded;
-}
-
-$flash = '';
-$flashType = 'success';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_account'])) {
-    if (!$apiConfigured) {
-        $flash = 'Please configure $API_URL with your deployed Google Apps Script URL.';
-        $flashType = 'error';
-    } else {
-        $payload = array(
-            'action' => 'update',
-            'rowNumber' => isset($_POST['rowNumber']) ? (int)$_POST['rowNumber'] : 0,
-            'process' => isset($_POST['process']) ? trim($_POST['process']) : '',
-            'status' => isset($_POST['status']) ? trim($_POST['status']) : '',
-            'remark' => isset($_POST['remark']) ? trim($_POST['remark']) : ''
-        );
-
-        $result = call_api($API_URL, $payload);
-        if (!empty($result['success']) || !empty($result['ok'])) {
-            $flash = 'Update request completed. Refreshing the account list will show the latest data.';
-            $flashType = 'success';
-        } else {
-            $flash = !empty($result['error']) ? $result['error'] : 'Update failed. Check Apps Script API contract.';
-            $flashType = 'error';
-        }
-    }
-}
-
-$records = array();
-$headers = array();
-$loadError = '';
-
-if (!$apiConfigured) {
-    $loadError = 'Configure $API_URL at the top of index.php before connecting to your Apps Script backend.';
-} else {
-    $result = call_api($API_URL, array('action' => 'list'));
-    if (!empty($result['records']) && is_array($result['records'])) {
-        $records = $result['records'];
-        $headers = isset($result['headers']) && is_array($result['headers']) ? $result['headers'] : array();
-    } elseif (!empty($result['error'])) {
-        $loadError = $result['error'];
-    } else {
-        $loadError = 'Could not load records. The Apps Script must accept POST action "list" and return records.';
-    }
-}
-
-$sols = array();
-foreach ($records as $record) {
-    $sol = isset($record['solId']) ? (string)$record['solId'] : '';
-    if ($sol !== '') {
-        $sols[$sol] = true;
-    }
-}
-ksort($sols);
-
-$processOptions = array(
-    'Customer Contact',
-    'Customer Consent Obtained',
-    'Documents Awaited',
-    'Documents Received',
-    'Claim / Reversal Request Submitted',
-    'Reversal Under Process',
-    'Reversal Completed',
-    'Account Holder Not Traceable',
-    'Customer Not Interested',
-    'Other'
-);
-$statusOptions = array('Pending', 'In Progress', 'Completed', 'Not Eligible', 'Rejected', 'Closed');
-
-function record_value($record, $key, $fallback = '') {
-    return isset($record[$key]) ? $record[$key] : $fallback;
-}
-?>
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DEAF Reversal Management Portal</title>
+<title>DEAF Account List</title>
 <style>
-:root{--green:#006633;--green2:#00994d;--line:#dce6df;--ink:#203027}
+:root{--green:#006633;--line:#dce6df;--ink:#203027}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 Arial,sans-serif;background:#f3f7f4;color:var(--ink)}
-header{background:linear-gradient(110deg,#006400,#00994d);color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}
-h1{font-size:25px;margin:0 0 5px}header p{margin:0;font-size:16px}
-.wrap{max-width:1500px;margin:18px auto;padding:0 14px}
-.banner{border-radius:9px;padding:12px 14px;margin-bottom:14px}
+header{background:linear-gradient(110deg,#006400,#00994d);color:white;padding:17px 20px}
+h1{font-size:24px;margin:0 0 5px}header p{margin:0;font-size:14px}
+main{max-width:1600px;margin:14px auto;padding:0 12px}
+.notice{border-radius:8px;padding:11px 13px;margin-bottom:12px}
 .warning{background:#fff3cd;border:1px solid #ffe08a;color:#6d5200}
 .error{background:#ffeded;border:1px solid #f3caca;color:#a11}
 .success{background:#eaf7ee;border:1px solid #bfe4c9;color:#176638}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
-.card,.panel{background:#fff;border:1px solid var(--line);border-radius:11px;padding:14px;box-shadow:0 2px 7px #173c2010}
-.card span{display:block;color:#637268;font-size:12px}.card strong{display:block;font-size:23px;margin-top:5px}
-.filters{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
-.field{display:flex;flex-direction:column;gap:5px;min-width:180px;flex:1}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.card,.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px;box-shadow:0 2px 7px #173c2010}
+.card span{display:block;color:#637268;font-size:12px}.card strong{display:block;font-size:22px;margin-top:4px}
+.filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;gap:10px;align-items:end}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
 label{font-size:12px;font-weight:bold;color:#536158}
-input,select,textarea{width:100%;font:inherit;padding:9px 10px;border:1px solid #cbd7ce;border-radius:7px;background:#fff}
-button{border:0;border-radius:7px;padding:10px 14px;background:var(--green);color:#fff;font-weight:bold;cursor:pointer}
+input,select,textarea{width:100%;font:inherit;padding:10px;border:1px solid #cbd7ce;border-radius:7px;background:white}
+button{border:0;border-radius:7px;padding:10px 14px;background:var(--green);color:white;font-weight:bold;cursor:pointer}
 button.secondary{background:#e7efe9;color:#155b32}
-.tablewrap{overflow:auto;margin-top:12px}
-table{border-collapse:collapse;width:100%;min-width:1350px}
+.tablewrap{overflow:auto;-webkit-overflow-scrolling:touch;margin-top:10px}
+table{border-collapse:collapse;width:100%;min-width:1450px}
 th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e6ece8;vertical-align:top;white-space:nowrap}
 th{background:#eff6f1;color:#315440;font-size:12px;position:sticky;top:0}
-td.remark{white-space:normal;min-width:160px;max-width:260px}
-.pill{display:inline-block;background:#edf6ef;color:#176638;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:bold}
+td.remark{white-space:normal;min-width:170px;max-width:260px}
 .small{font-size:12px;color:#68776e}
-.editbox{margin-top:14px}
-.editgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hidden{display:none!important}
+.editgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .wide{grid-column:1/-1}
-.hidden{display:none}
-footer{text-align:center;color:#7b8980;padding:18px;font-size:12px}
-@media(max-width:900px){
-  header{padding:16px;align-items:flex-start}
-  h1{font-size:22px}
-  .wrap{padding:0 10px;margin:12px auto}
-  .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  .card{padding:12px}
-  .card strong{font-size:20px}
-  .filters{display:grid;grid-template-columns:1fr;align-items:stretch}
-  .field{min-width:0;width:100%}
-  .filters button{width:100%}
-  .panel{padding:12px}
-  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{min-width:1250px}
-  th,td{padding:8px;font-size:12px}
-  .editgrid{grid-template-columns:1fr}
-  .wide{grid-column:auto}
-  .editbox button{width:100%;margin:4px 0}
+footer{text-align:center;color:#7b8980;padding:15px;font-size:12px}
+@media(max-width:800px){
+ header{padding:15px}h1{font-size:21px}
+ main{padding:0 8px;margin:10px auto}
+ .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .card{padding:11px}.card strong{font-size:19px}
+ .filters{grid-template-columns:1fr}
+ .filters button{width:100%}
+ .panel{padding:11px}
+ .tablewrap{margin-left:-2px;margin-right:-2px}
+ table{min-width:1350px}
+ th,td{font-size:12px;padding:8px}
+ .editgrid{grid-template-columns:1fr}
+ .wide{grid-column:auto}
+ #editor button{width:100%;margin:4px 0}
 }
-@media(max-width:480px){
-  header{display:block}
-  header h1{font-size:20px;line-height:1.25}
-  header p{font-size:13px}
-  header .pill{margin-top:10px}
-  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .card span{font-size:11px}
-  .card strong{font-size:18px;overflow-wrap:anywhere}
-  .banner{font-size:13px;padding:10px}
-  .panel h3{font-size:17px}
-  input,select,textarea,button{font-size:16px}
-  footer{padding:14px 8px}
-}
+@media(max-width:420px){h1{font-size:19px}.card span{font-size:11px}.card strong{font-size:17px}.notice{font-size:12px}}
 </style>
 </head>
 <body>
 <header>
-  <div><h1>DEAF Reversal Management Portal</h1><p>DEAF Account Tracking &amp; Reversal</p></div>
-  <div class="pill">Account Management</div>
+  <h1>DEAF Account List</h1>
+  <p>Select View / Edit to update PROCESS, STATUS and REMARK.</p>
 </header>
-<div class="wrap">
-  <?php if ($flash !== ''): ?>
-    <div class="banner <?php echo $flashType === 'error' ? 'error' : 'success'; ?>"><?php echo h($flash); ?></div>
-  <?php endif; ?>
-
-  <?php if ($loadError !== ''): ?>
-    <div class="banner error"><?php echo h($loadError); ?></div>
-  <?php endif; ?>
-
-  <div class="banner warning">
-    PROCESS, STATUS and REMARK are the only editable fields in this page. The Apps Script backend must verify authorization before reading or changing real customer records.
-  </div>
-
+<main>
+  <div class="notice warning">Connect your deployed Apps Script URL in <code>API_URL</code>. The backend must authorize access to live customer data.</div>
+  <div id="message" class="notice hidden" role="status"></div>
   <div class="cards">
-    <div class="card"><span>Accounts Loaded</span><strong id="totalCount"><?php echo count($records); ?></strong></div>
+    <div class="card"><span>Accounts</span><strong id="totalCount">0</strong></div>
     <div class="card"><span>Total Amount</span><strong id="totalAmount">₹0</strong></div>
     <div class="card"><span>Completed</span><strong id="completedCount">0</strong></div>
     <div class="card"><span>Pending / In Progress</span><strong id="pendingCount">0</strong></div>
   </div>
-
   <section class="panel">
     <div class="filters">
-      <div class="field">
-        <label for="solFilter">Select SOL ID / Branch</label>
-        <select id="solFilter"><option value="">All SOLs</option>
-          <?php foreach ($sols as $sol => $unused): ?>
-            <option value="<?php echo h($sol); ?>"><?php echo h($sol); ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="field"><label for="search">Search accounts</label><input id="search" type="search" placeholder="Name, account no., customer ID, branch..."></div>
+      <div class="field"><label for="solFilter">Select SOL ID / Branch</label><select id="solFilter"><option value="">All SOLs</option></select></div>
+      <div class="field"><label for="search">Search</label><input id="search" type="search" placeholder="Name, account number, customer ID, branch"></div>
       <button type="button" class="secondary" id="resetBtn">Reset Filters</button>
     </div>
   </section>
-
-  <section class="panel" style="margin-top:14px">
+  <section class="panel" style="margin-top:12px">
     <h3 style="margin:0">DEAF Account List</h3>
-    <div class="small">Select View / Edit to update PROCESS, STATUS and REMARK.</div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr>
-          <th>SOL ID</th><th>Branch</th><th>NAME</th><th>CUST ID</th><th>ACCOUNT NO</th>
-          <th>SCHEME</th><th>SHCEME TYPE</th><th>AMOUNT</th><th>LAST TR DATE</th>
-          <th>DEAF TR DATE</th><th>TRAN ID</th><th>ACCOUNT STATUS</th><th>UDRN</th>
-          <th>ADD1</th><th>ADD2</th><th>PIN CODE</th><th>MOB NO</th>
-          <th>PROCESS</th><th>STATUS</th><th>REMARK</th><th>Action</th>
-        </tr></thead>
-        <tbody id="accountRows">
-        <?php foreach ($records as $record): ?>
-          <?php
-            $values = isset($record['values']) && is_array($record['values']) ? $record['values'] : array();
-            $getv = function($key) use ($record, $values, $headers) {
-                if (isset($record[$key])) return $record[$key];
-                $target = strtoupper($key);
-                foreach ($headers as $i => $header) {
-                    if (strtoupper(trim($header)) === $target && isset($values[$i])) return $values[$i];
-                }
-                return '';
-            };
-            $jsonData = array(
-                'rowNumber' => record_value($record, 'rowNumber', ''),
-                'solId' => $getv('SOL ID'),
-                'branch' => $getv('Branch'),
-                'name' => $getv('NAME'),
-                'custId' => $getv('CUST ID'),
-                'accountNo' => $getv('ACCOUNT NO'),
-                'scheme' => $getv('SCHEME'),
-                'schemeType' => $getv('SHCEME TYPE'),
-                'amount' => $getv('AMOUNT'),
-                'lastTrDate' => $getv('LAST TR DATE'),
-                'deafTrDate' => $getv('DEAF TR DATE'),
-                'tranId' => $getv('TRAN ID'),
-                'accountStatus' => $getv('ACCOUNT STATUS'),
-                'udrn' => $getv('UDRN'),
-                'add1' => $getv('ADD1'),
-                'add2' => $getv('ADD2'),
-                'pinCode' => $getv('PIN CODE'),
-                'mobNo' => $getv('MOB NO'),
-                'process' => record_value($record, 'process', $getv('PROCESS')),
-                'status' => record_value($record, 'status', $getv('STATUS')),
-                'remark' => record_value($record, 'remark', $getv('REMARK'))
-            );
-          ?>
-          <tr data-record="<?php echo h(json_encode($jsonData)); ?>">
-            <td><?php echo h($jsonData['solId']); ?></td><td><?php echo h($jsonData['branch']); ?></td>
-            <td><?php echo h($jsonData['name']); ?></td><td><?php echo h($jsonData['custId']); ?></td>
-            <td><?php echo h($jsonData['accountNo']); ?></td><td><?php echo h($jsonData['scheme']); ?></td>
-            <td><?php echo h($jsonData['schemeType']); ?></td><td class="amount"><?php echo h($jsonData['amount']); ?></td>
-            <td><?php echo h($jsonData['lastTrDate']); ?></td><td><?php echo h($jsonData['deafTrDate']); ?></td>
-            <td><?php echo h($jsonData['tranId']); ?></td><td><?php echo h($jsonData['accountStatus']); ?></td>
-            <td><?php echo h($jsonData['udrn']); ?></td><td><?php echo h($jsonData['add1']); ?></td>
-            <td><?php echo h($jsonData['add2']); ?></td><td><?php echo h($jsonData['pinCode']); ?></td>
-            <td><?php echo h($jsonData['mobNo']); ?></td><td class="processCell"><?php echo h($jsonData['process']); ?></td>
-            <td class="statusCell"><?php echo h($jsonData['status']); ?></td><td class="remark"><?php echo h($jsonData['remark']); ?></td>
-            <td><button type="button" class="editBtn">View / Edit</button></td>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-    <p id="noRows" class="<?php echo count($records) ? 'hidden' : ''; ?>">No records available.</p>
+    <div class="small">The table scrolls horizontally on small screens.</div>
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>SOL ID</th><th>Branch</th><th>NAME</th><th>CUST ID</th><th>ACCOUNT NO</th>
+        <th>SCHEME</th><th>SHCEME TYPE</th><th>AMOUNT</th><th>LAST TR DATE</th>
+        <th>DEAF TR DATE</th><th>TRAN ID</th><th>ACCOUNT STATUS</th><th>UDRN</th>
+        <th>ADD1</th><th>ADD2</th><th>PIN CODE</th><th>MOB NO</th>
+        <th>PROCESS</th><th>STATUS</th><th>REMARK</th><th>Action</th>
+      </tr></thead><tbody id="rows"></tbody>
+    </table></div>
+    <p id="empty" class="hidden">No records found.</p>
   </section>
-
-  <section class="panel editbox hidden" id="editor">
-    <h3 style="margin-top:0">Update Account</h3>
-    <p id="selectedInfo" class="small"></p>
-    <form method="post" id="editForm">
-      <input type="hidden" name="rowNumber" id="rowNumber">
+  <section id="editor" class="panel hidden" style="margin-top:12px">
+    <h3 style="margin-top:0">Update Account</h3><p id="selectedInfo" class="small"></p>
+    <form id="editForm">
+      <input id="rowNumber" type="hidden">
       <div class="editgrid">
-        <div><label for="process">PROCESS</label><select id="process" name="process" required>
-          <?php foreach ($processOptions as $option): ?><option value="<?php echo h($option); ?>"><?php echo h($option); ?></option><?php endforeach; ?>
-        </select></div>
-        <div><label for="status">STATUS</label><select id="status" name="status" required>
-          <?php foreach ($statusOptions as $option): ?><option value="<?php echo h($option); ?>"><?php echo h($option); ?></option><?php endforeach; ?>
-        </select></div>
-        <div class="wide"><label for="remarkInput">REMARK</label><textarea id="remarkInput" name="remark" rows="3"></textarea></div>
+        <div class="field"><label for="process">PROCESS</label><select id="process" required></select></div>
+        <div class="field"><label for="status">STATUS</label><select id="status" required></select></div>
+        <div class="field wide"><label for="remark">REMARK</label><textarea id="remark" rows="3"></textarea></div>
       </div>
-      <p><button type="submit" name="save_account" value="1">Save Update</button> <button type="button" class="secondary" id="cancelBtn">Cancel</button></p>
+      <p><button type="submit">Save Update</button> <button type="button" class="secondary" id="cancelBtn">Cancel</button></p>
     </form>
   </section>
-</div>
+</main>
 <footer>DEAF Reversal Management Portal</footer>
 <script>
-(function(){
-  var rows = Array.prototype.slice.call(document.querySelectorAll('#accountRows tr'));
-  var solFilter = document.getElementById('solFilter');
-  var search = document.getElementById('search');
-  var editor = document.getElementById('editor');
-  var amountText = function(value){
-    var n = Number(String(value || '0').replace(/[,₹\s]/g,''));
-    return isNaN(n) ? 0 : n;
-  };
-  function getData(row){
-    try { return JSON.parse(row.getAttribute('data-record') || '{}'); }
-    catch(e){ return {}; }
+/* Replace this with the deployed Apps Script /exec URL. */
+const API_URL = "PASTE_YOUR_DEPLOYED_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+const PROCESS_OPTIONS = [
+ "Customer Contact","Customer Consent Obtained","Documents Awaited","Documents Received",
+ "Claim / Reversal Request Submitted","Reversal Under Process","Reversal Completed",
+ "Account Holder Not Traceable","Customer Not Interested","Other"
+];
+const STATUS_OPTIONS = ["Pending","In Progress","Completed","Not Eligible","Rejected","Closed"];
+const HEADERS = ["SOL ID","Branch","NAME","CUST ID","ACCOUNT NO","SCHEME","SHCEME TYPE","AMOUNT","LAST TR DATE","DEAF TR DATE","TRAN ID","ACCOUNT STATUS","UDRN","ADD1","ADD2","PIN CODE","MOB NO","PROCESS","STATUS","REMARK"];
+const $ = id => document.getElementById(id);
+let records = [];
+
+function esc(v){return String(v == null ? "" : v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function showMessage(text,type){const m=$("message");m.textContent=text;m.className="notice "+(type||"error");}
+function money(v){const n=Number(String(v||0).replace(/[₹,\s]/g,""));return "₹"+(Number.isFinite(n)?n:0).toLocaleString("en-IN",{maximumFractionDigits:2});}
+function normRecord(r){
+  if(r && Array.isArray(r.values)){
+    const obj={rowNumber:r.rowNumber};
+    HEADERS.forEach((h,i)=>obj[h]=r.values[i]||"");
+    obj["SOL ID"]=r.solId||obj["SOL ID"];
+    obj["ACCOUNT NO"]=r.accountNo||obj["ACCOUNT NO"];
+    obj.PROCESS=r.process||obj.PROCESS||"";
+    obj.STATUS=r.status||obj.STATUS||"";
+    obj.REMARK=r.remark||obj.REMARK||"";
+    return obj;
   }
-  function render(){
-    var sol = solFilter.value;
-    var q = search.value.toLowerCase().trim();
-    var total = 0, completed = 0, pending = 0, visible = 0;
-    rows.forEach(function(row){
-      var d = getData(row);
-      var text = row.textContent.toLowerCase();
-      var show = (!sol || String(d.solId) === sol) && (!q || text.indexOf(q) !== -1);
-      row.style.display = show ? '' : 'none';
-      if(show){
-        visible++;
-        total += amountText(d.amount);
-        if(String(d.status).toLowerCase() === 'completed') completed++;
-        if(['pending','in progress'].indexOf(String(d.status).toLowerCase()) !== -1) pending++;
-      }
-    });
-    document.getElementById('totalCount').textContent = visible;
-    document.getElementById('totalAmount').textContent = '₹' + total.toLocaleString('en-IN',{maximumFractionDigits:2});
-    document.getElementById('completedCount').textContent = completed;
-    document.getElementById('pendingCount').textContent = pending;
-    document.getElementById('noRows').classList.toggle('hidden', visible !== 0);
+  return r || {};
+}
+function getVal(r, key){return r[key] == null ? "" : r[key];}
+async function api(action, extra){
+  const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action},extra||{}))});
+  if(!res.ok) throw new Error("API HTTP "+res.status);
+  return await res.json();
+}
+async function loadData(){
+  if(!API_URL.startsWith("https://script.google.com/macros/s/") || API_URL.includes("PASTE_YOUR")){
+    showMessage("Set API_URL in index.html to your deployed Apps Script /exec URL. The table cannot load until configured.","error");return;
   }
-  rows.forEach(function(row){
-    row.querySelector('.editBtn').addEventListener('click', function(){
-      var d = getData(row);
-      document.getElementById('rowNumber').value = d.rowNumber || '';
-      document.getElementById('selectedInfo').textContent =
-        'SOL ' + (d.solId || '') + ' · ' + (d.branch || '') + ' · ' +
-        (d.name || '') + ' · Account ' + (d.accountNo || '');
-      document.getElementById('process').value = d.process || 'Customer Contact';
-      document.getElementById('status').value = d.status || 'Pending';
-      document.getElementById('remarkInput').value = d.remark || '';
-      editor.classList.remove('hidden');
-      editor.scrollIntoView({behavior:'smooth',block:'start'});
-    });
+  try{
+    const data=await api("list");
+    if(data.ok===false || data.success===false) throw new Error(data.error||"Apps Script returned an error");
+    if(!Array.isArray(data.records)) throw new Error("API response has no records array. Check Code.gs action=list response.");
+    records=data.records.map(normRecord);
+    fillSelects();render();
+    $("message").classList.add("hidden");
+  }catch(e){showMessage("Could not load DEAF data: "+e.message+". Ensure Apps Script supports POST action=list and its deployment permissions/CORS are configured.","error");}
+}
+function fillSelects(){
+  const sols=[...new Set(records.map(r=>String(getVal(r,"SOL ID")||r.solId||"")).filter(Boolean))].sort();
+  $("solFilter").innerHTML='<option value="">All SOLs</option>'+sols.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  $("process").innerHTML=PROCESS_OPTIONS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  $("status").innerHTML=STATUS_OPTIONS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+}
+function filtered(){
+  const sol=$("solFilter").value,q=$("search").value.toLowerCase().trim();
+  return records.filter(r=>{
+    const sid=String(getVal(r,"SOL ID")||r.solId||"");
+    const hay=HEADERS.map(h=>getVal(r,h)).join(" ").toLowerCase();
+    return (!sol||sid===sol)&&(!q||hay.includes(q));
   });
-  solFilter.addEventListener('change',render);
-  search.addEventListener('input',render);
-  document.getElementById('resetBtn').addEventListener('click',function(){
-    solFilter.value=''; search.value=''; render();
-  });
-  document.getElementById('cancelBtn').addEventListener('click',function(){
-    editor.classList.add('hidden');
-  });
-  render();
-})();
+}
+function render(){
+  const list=filtered();
+  $("totalCount").textContent=list.length;
+  $("totalAmount").textContent=money(list.reduce((s,r)=>s+Number(String(getVal(r,"AMOUNT")||0).replace(/[₹,\s]/g,"")||0),0));
+  $("completedCount").textContent=list.filter(r=>String(getVal(r,"STATUS")||r.status).toLowerCase()==="completed").length;
+  $("pendingCount").textContent=list.filter(r=>["pending","in progress"].includes(String(getVal(r,"STATUS")||r.status).toLowerCase())).length;
+  $("rows").innerHTML=list.map((r)=>{
+    const cells=HEADERS.map(h=>`<td class="${h==="REMARK"?"remark":""}">${esc(getVal(r,h)|| (h==="PROCESS"?r.process:h==="STATUS"?r.status:h==="REMARK"?r.remark:""))}</td>`).join("");
+    const ix=records.indexOf(r);
+    return `<tr><td>${esc(getVal(r,"SOL ID")||r.solId)}</td>${cells.slice(cells.indexOf("</td>")+5)}<td><button type="button" data-index="${ix}" class="editBtn">View / Edit</button></td></tr>`;
+  }).join("");
+  // Rebuild rows safely with one cell per header (avoids duplicated SOL cell)
+  $("rows").innerHTML=list.map(r=>{
+    const ix=records.indexOf(r);
+    return "<tr>"+HEADERS.map(h=>`<td class="${h==="REMARK"?"remark":""}">${esc(getVal(r,h)|| (h==="PROCESS"?r.process:h==="STATUS"?r.status:h==="REMARK"?r.remark:""))}</td>`).join("")+
+      `<td><button type="button" class="editBtn" data-index="${ix}">View / Edit</button></td></tr>`;
+  }).join("");
+  $("empty").classList.toggle("hidden",list.length>0);
+  document.querySelectorAll(".editBtn").forEach(b=>b.addEventListener("click",()=>openEditor(Number(b.dataset.index))));
+}
+function openEditor(i){
+  const r=records[i];if(!r)return;
+  $("rowNumber").value=r.rowNumber||"";
+  $("selectedInfo").textContent="SOL "+(getVal(r,"SOL ID")||r.solId||"")+" · "+getVal(r,"Branch")+" · "+getVal(r,"NAME")+" · Account "+(getVal(r,"ACCOUNT NO")||r.accountNo||"");
+  $("process").value=getVal(r,"PROCESS")||r.process||PROCESS_OPTIONS[0];
+  $("status").value=getVal(r,"STATUS")||r.status||STATUS_OPTIONS[0];
+  $("remark").value=getVal(r,"REMARK")||r.remark||"";
+  $("editor").dataset.index=String(i);$("editor").classList.remove("hidden");$("editor").scrollIntoView({behavior:"smooth"});
+}
+$("editForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const i=Number($("editor").dataset.index),r=records[i];
+  if(!r){showMessage("Select an account first.","error");return;}
+  try{
+    const result=await api("update",{rowNumber:Number($("rowNumber").value||r.rowNumber),process:$("process").value,status:$("status").value,remark:$("remark").value});
+    if(result.success===false||result.ok===false)throw new Error(result.error||"Update failed");
+    showMessage(result.message||"Update sent. Reloading records…","success");
+    $("editor").classList.add("hidden");await loadData();
+  }catch(err){showMessage("Update failed: "+err.message+". Verify that Code.gs supports POST action=update.","error");}
+});
+$("solFilter").addEventListener("change",render);
+$("search").addEventListener("input",render);
+$("resetBtn").addEventListener("click",()=>{$("solFilter").value="";$("search").value="";render();});
+$("cancelBtn").addEventListener("click",()=>$("editor").classList.add("hidden"));
+loadData();
 </script>
-</body>
-</html>
+</body></html>

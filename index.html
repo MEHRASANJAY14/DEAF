@@ -142,6 +142,12 @@ function norm(r){
 function showNotice(msg,type="warn"){const n=$("notice");n.className="notice "+type;n.textContent=msg;n.classList.remove("hidden");}
 function hideNotice(){$("notice").classList.add("hidden");}
 function money(v){const n=Number(String(v||0).replace(/[₹,\s]/g,""));return "₹"+(Number.isFinite(n)?n:0).toLocaleString("en-IN",{maximumFractionDigits:2});}
+function populateBranchDropdown(){
+ const select=$("solSelect");
+ select.innerHTML='<option value="">Select SOL ID / Branch</option>'+
+   BRANCH_MASTER.map(b=>`<option value="${esc(b.solId)}">${esc(b.solId)} — ${esc(b.branch)}</option>`).join("");
+ $("branchMeta").textContent=BRANCH_MASTER.length+" branches available. Select a branch.";
+}
 async function api(action,extra={}){
  const controller = new AbortController();
  const timeoutId = setTimeout(()=>controller.abort(), 20000);
@@ -162,21 +168,32 @@ async function api(action,extra={}){
 async function init(){
  $("process").innerHTML=PROCESS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
  $("status").innerHTML=STATUS_OPTIONS.map(x=>`<option>${esc(x)}</option>`).join("");
+
+ // Load SOL dropdown immediately from the local branch master.
+ populateBranchDropdown();
+
  try{
-  showNotice("Loading accounts…","warn");
+  showNotice("Loading account data…","warn");
   const res=await api("list");
   if(res.success===false||res.ok===false)throw new Error(res.error||"API request failed");
   if(!Array.isArray(res.records))throw new Error('API response must contain a "records" array.');
   records=res.records.map(norm);
-  const solMap=new Map();
-  BRANCH_MASTER.forEach(b=>solMap.set(String(b.solId),b.branch));
-  records.forEach(r=>{const id=String(val(r,"SOL ID")||r.solId||"").trim();if(id)solMap.set(id,String(val(r,"Branch")||r.branch||solMap.get(id)||""));});
-  $("solSelect").innerHTML='<option value="">Select SOL ID / Branch</option>'+Array.from(solMap.entries()).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([id,name])=>`<option value="${esc(id)}">${esc(id)}${name?" — "+esc(name):""}</option>`).join("");
-  $("branchMeta").textContent=records.length+" account records loaded.";
-  showNotice("Loaded "+records.length+" account records.", "ok");
+
+  // Preserve all 53 master branches; update labels from records when branch names exist.
+  const names=new Map(BRANCH_MASTER.map(b=>[String(b.solId),b.branch]));
+  records.forEach(r=>{
+    const id=String(val(r,"SOL ID")||r.solId||"").trim();
+    if(id && (val(r,"Branch")||r.branch)) names.set(id,String(val(r,"Branch")||r.branch));
+  });
+  $("solSelect").innerHTML='<option value="">Select SOL ID / Branch</option>'+
+    Array.from(names.entries()).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}))
+    .map(([id,name])=>`<option value="${esc(id)}">${esc(id)} — ${esc(name)}</option>`).join("");
+  $("branchMeta").textContent=records.length+" account records loaded; "+names.size+" branches available.";
+  showNotice("Account data loaded successfully.","ok");
  }catch(e){
-  $("solSelect").innerHTML='<option value="">Unable to load SOL list</option>';
-  showNotice("Could not connect to DEAF API: "+e.message+". Check deployment URL, access permissions and browser CORS restrictions.","error");
+  // Keep static SOL dropdown available even if API/CORS is temporarily failing.
+  showNotice("SOL list is ready, but account data could not load: "+e.message+". Check Apps Script deployment/API access.","error");
+  $("branchMeta").textContent=BRANCH_MASTER.length+" branches available. Account data connection needs checking.";
  }
 }
 function solRecords(){return records.filter(r=>String(val(r,"SOL ID")||r.solId||"").trim()===selectedSol);}

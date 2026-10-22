@@ -172,12 +172,42 @@ td.remark{white-space:normal;min-width:160px;max-width:260px}
 .wide{grid-column:1/-1}
 .hidden{display:none}
 footer{text-align:center;color:#7b8980;padding:18px;font-size:12px}
-@media(max-width:750px){header{display:block}header h1{font-size:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.editgrid{grid-template-columns:1fr}.wide{grid-column:auto}}
+@media(max-width:900px){
+  header{padding:16px;align-items:flex-start}
+  h1{font-size:22px}
+  .wrap{padding:0 10px;margin:12px auto}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .card{padding:12px}
+  .card strong{font-size:20px}
+  .filters{display:grid;grid-template-columns:1fr;align-items:stretch}
+  .field{min-width:0;width:100%}
+  .filters button{width:100%}
+  .panel{padding:12px}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:1250px}
+  th,td{padding:8px;font-size:12px}
+  .editgrid{grid-template-columns:1fr}
+  .wide{grid-column:auto}
+  .editbox button{width:100%;margin:4px 0}
+}
+@media(max-width:480px){
+  header{display:block}
+  header h1{font-size:20px;line-height:1.25}
+  header p{font-size:13px}
+  header .pill{margin-top:10px}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card span{font-size:11px}
+  .card strong{font-size:18px;overflow-wrap:anywhere}
+  .banner{font-size:13px;padding:10px}
+  .panel h3{font-size:17px}
+  input,select,textarea,button{font-size:16px}
+  footer{padding:14px 8px}
+}
 </style>
 </head>
 <body>
 <header>
-  <div><h1>DEAF Reversal Management Portal</h1><p>Madhya Pradesh Gramin Bank · Regional Office Jabalpur</p></div>
+  <div><h1>DEAF Reversal Management Portal</h1><p>DEAF Account Tracking &amp; Reversal</p></div>
   <div class="pill">Account Management</div>
 </header>
 <div class="wrap">
@@ -301,7 +331,7 @@ footer{text-align:center;color:#7b8980;padding:18px;font-size:12px}
     </form>
   </section>
 </div>
-<footer>MPGB · Regional Office Jabalpur</footer>
+<footer>DEAF Reversal Management Portal</footer>
 <script>
 (function(){
   var rows = Array.prototype.slice.call(document.querySelectorAll('#accountRows tr'));

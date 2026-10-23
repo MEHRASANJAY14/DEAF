@@ -25,11 +25,14 @@ button.outline{background:#fff;color:var(--green);border:1px solid #b7d2bf}
 .notice.ok{background:#eaf7ee;border:1px solid #bfe4c9;color:#176638}
 .notice.warn{background:#fff4d5;border:1px solid #f4df9b;color:#705600}
 .hidden{display:none!important}
-#editPanel{position:fixed;inset:0;z-index:1000;margin:0;border-radius:0;background:rgba(12,30,18,.48);border:0;box-shadow:none;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#editPanel{position:fixed;inset:0;z-index:1000;margin:0;border-radius:0;background:rgba(12,30,18,.52);border:0;box-shadow:none;display:none;flex-direction:column;align-items:center;justify-content:center;padding:18px;overflow-y:auto;overscroll-behavior:contain}
 #editPanel:not(.hidden){display:flex}
-#editPanel>.section-head,#editPanel>form{width:min(100%,900px);background:#fff}
-#editPanel>.section-head{margin:0 auto;padding:16px 18px 0;border-radius:13px 13px 0 0}
-#editPanel>form{margin:0!important;padding:0 18px 18px;border-radius:0 0 13px 13px;max-height:85vh;overflow:auto}
+#editPanel>.section-head,#editPanel>form{width:min(100%,900px);min-width:0;flex:0 0 auto;background:#fff}
+#editPanel>.section-head{margin:0;padding:16px 18px 10px;border-radius:13px 13px 0 0;}
+#editPanel>form{margin:0!important;padding:0 18px 18px;border-radius:0 0 13px 13px;max-height:calc(90vh - 76px);overflow-y:auto;overscroll-behavior:contain}
+#editPanel .detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+#editPanel .detail{overflow-wrap:anywhere}
+#editPanel .section-head button{flex-shrink:0}
 #editableFields{grid-template-columns:repeat(3,minmax(0,1fr))}
 .selector{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
 .sol-meta{margin-top:9px;font-size:13px;color:var(--muted)}
@@ -81,8 +84,12 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
  .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  .form-grid{grid-template-columns:1fr}
   #editableFields{grid-template-columns:1fr}
-  #editPanel{padding:8px}
-  #editPanel>form{max-height:88vh}
+  #editPanel{padding:10px;justify-content:center;align-items:center}
+  #editPanel>.section-head,#editPanel>form{width:100%;max-width:560px}
+  #editPanel>.section-head{padding:14px 14px 10px;gap:10px}
+  #editPanel>form{padding:0 14px 16px;max-height:calc(90dvh - 72px);max-height:calc(90vh - 72px)}
+  #editPanel .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #editPanel .form-actions button{flex:1;min-height:44px}
  .form-grid .wide{grid-column:auto}
  .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
  .stat{padding:9px}.stat strong{font-size:17px}

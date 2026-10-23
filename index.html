@@ -201,7 +201,7 @@ footer{text-align:center;color:#7c8a80;padding:12px;font-size:12px}
 </main>
 <footer>DEAF Account Management</footer>
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbyQRiCLA4RtUryREQ5We9y-ctp1y348S_vJgIRIiPplNVDv63kMZiMPKxdTd7gtmUZV/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxTG6Ufo3w5aXRE7zERkgs13tCrWbSX1HUk1kEcjYjjNjiowASpU7m12X2AAJHjJ0oz/exec";
 const PROCESS_OPTIONS=["Customer Contact","Customer Consent Obtained","Documents Awaited","Documents Received","Claim / Reversal Request Submitted","Reversal Under Process","Reversal Completed","Account Holder Not Traceable","Customer Not Interested","Other"];
 const STATUS_OPTIONS=["Pending","In Progress","Completed","Not Eligible","Rejected","Closed"];
 const BRANCH_MASTER = [{"solId": "12010", "branch": "JABALPUR"}, {"solId": "12020", "branch": "RANJHI"}, {"solId": "12030", "branch": "SIHORA (JBP)"}, {"solId": "12040", "branch": "KHITOLA BAZAR"}, {"solId": "12050", "branch": "SAHAJPUR"}, {"solId": "12060", "branch": "SHAHPURA (JBP)"}, {"solId": "12070", "branch": "PANAGAR"}, {"solId": "12080", "branch": "LAMKANA"}, {"solId": "12090", "branch": "ADHARTAL JABALPUR"}, {"solId": "12100", "branch": "PATAN"}, {"solId": "12110", "branch": "MANJHOLI"}, {"solId": "12120", "branch": "PISANHARI MADHIYA"}, {"solId": "12130", "branch": "EKTA CHOUK, UKHARIROAD"}, {"solId": "12140", "branch": "KARMETA GRAM"}, {"solId": "12150", "branch": "BARGI"}, {"solId": "12160", "branch": "GWARIGHAT ROAD"}, {"solId": "12170", "branch": "BILHARI"}, {"solId": "12180", "branch": "KUA"}, {"solId": "12190", "branch": "KYMORE"}, {"solId": "12200", "branch": "DEORA KALA"}, {"solId": "12210", "branch": "VILAYAT KALA"}, {"solId": "12220", "branch": "DASHARMAN"}, {"solId": "12230", "branch": "AMGAWAN"}, {"solId": "12240", "branch": "KATNI"}, {"solId": "12250", "branch": "DEORI TOLA"}, {"solId": "12260", "branch": "UMARIYAPAN"}, {"solId": "12270", "branch": "BADWARA"}, {"solId": "12280", "branch": "VIJAY RAGHAVGARH"}, {"solId": "12290", "branch": "KHIRHANI DURGA CHOWK"}, {"solId": "12300", "branch": "BARAHI"}, {"solId": "12310", "branch": "BAHORIBAND"}, {"solId": "12320", "branch": "NARSINGHPUR"}, {"solId": "12330", "branch": "STATION GANJ NARSINGHPUR"}, {"solId": "12340", "branch": "AMGAON BADA"}, {"solId": "12350", "branch": "KANWAS"}, {"solId": "12360", "branch": "PANARI"}, {"solId": "12370", "branch": "BOHANI"}, {"solId": "12380", "branch": "KARELI"}, {"solId": "12390", "branch": "BAGASPUR"}, {"solId": "12400", "branch": "SAIKHEDA"}, {"solId": "12410", "branch": "CHICHALI"}, {"solId": "12420", "branch": "BARAHATA"}, {"solId": "12430", "branch": "KAMTI IMALYA"}, {"solId": "12440", "branch": "SINGHPUR BADA"}, {"solId": "12450", "branch": "GADARWARA"}, {"solId": "12460", "branch": "DEORI LOLRI"}, {"solId": "12470", "branch": "NARSINGHPUR BASTI"}, {"solId": "12480", "branch": "KARAKBEL"}, {"solId": "12490", "branch": "SOORWARI"}, {"solId": "12500", "branch": "TENDUKHEDA"}, {"solId": "12510", "branch": "GOTEGAON"}, {"solId": "12520", "branch": "COLLECTORATE, NARSINGHPUR"}, {"solId": "12530", "branch": "ADARSH SHIKSHAN SAMITI, KARELI"}];
@@ -226,54 +226,21 @@ function populateBranchDropdown(){
  $("branchMeta").textContent=BRANCH_MASTER.length+" branches available. Select a branch.";
 }
 function api(action,extra={}){
-  // Read operations use JSONP to avoid GitHub Pages -> Apps Script CORS/redirect failures.
-  if(action === "list"){
-   return new Promise((resolve,reject)=>{
-    // This callback name has already been tested against the deployed Apps Script.
-    const callbackName="testCallback";
-    const script=document.createElement("script");
-    let finished=false;
-    const previousCallback=window[callbackName];
-    let timeoutId;
-    const jsonpHandler=(data)=>{
-     cleanup();
-     if(!data||typeof data!=="object")reject(new Error("Invalid API response from Apps Script."));
-     else if(data.success===false||data.ok===false)reject(new Error(data.error||"Apps Script returned an error."));
-     else resolve(data);
-    };
-    const cleanup=()=>{
-     if(finished)return;
-     finished=true;
-     if(window[callbackName]===jsonpHandler){
-      if(previousCallback===undefined){try{delete window[callbackName];}catch(_){window[callbackName]=undefined;}}
-      else window[callbackName]=previousCallback;
-     }
-     if(script.parentNode)script.parentNode.removeChild(script);
-     clearTimeout(timeoutId);
-    };
-    timeoutId=setTimeout(()=>{
-     cleanup();
-     reject(new Error("No response from Apps Script after 25 seconds. Check deployment access and open the portal in Chrome."));
-    },25000);
-    window[callbackName]=jsonpHandler;
-    script.async=true;
-    script.onerror=()=>{
-     cleanup();
-     reject(new Error("Could not load Apps Script response. Check the Web App deployment access and URL."));
-    };
-    const separator=API_URL.includes("?")?"&":"?";
-    script.src=API_URL+separator+"action=list&callback="+encodeURIComponent(callbackName)+"&_="+Date.now();
-    document.head.appendChild(script);
-   });
-  }
-  // Keep POST for updates. Apps Script must be deployed after Code.gs changes.
+  // This backend's doPost(e) handles both action=list and action=update.
+  // Use the same POST protocol for reading and updating; do not call JSONP
+  // because the current Code.gs doGet() is only a health-check endpoint.
   return fetch(API_URL,{
    method:"POST",
    headers:{"Content-Type":"text/plain;charset=utf-8"},
    body:JSON.stringify(Object.assign({action},extra))
-  }).then(response=>{
-   if(!response.ok)throw new Error("HTTP "+response.status);
-   return response.json();
+  }).then(async response=>{
+   const text=await response.text();
+   if(!response.ok) throw new Error("HTTP "+response.status+": "+text.slice(0,180));
+   let data;
+   try { data=JSON.parse(text); }
+   catch(e) { throw new Error("Apps Script did not return JSON. Response begins: "+text.slice(0,120)); }
+   if(data && (data.success===false || data.ok===false)) throw new Error(data.error||"Apps Script returned an error.");
+   return data;
   });
 }
 async function init(){
